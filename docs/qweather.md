@@ -4,7 +4,7 @@
 
 ## 在手机上使用
 
-1. 安装当前版本的 Debug APK（0.6.0 为 `dist/Ambient-0.6.0-debug.apk`），可覆盖相同签名的旧版。环境快照与历史记录见[历史说明](history.md)，0.6.0 的 CSV 导出见[导出说明](csv-export.md)；本文下方保留 0.4.0 的接入验证记录。
+1. 安装当前版本的 Debug APK（0.7.0 为 `dist/Ambient-0.7.0-debug.apk`），可覆盖相同签名的旧版。环境快照见[历史说明](history.md)，筛选、对比与可选趋势见[历史分析](history-analysis.md)，CSV 导出见[导出说明](csv-export.md)；本文下方保留 0.4.0 的接入验证记录。
 2. 通过 USB 将电脑的 `qweather.local.json` 和 `secrets/qweather/ed25519-private.pem` 复制到自己手机的“下载”目录。不要用聊天、邮件或公开网盘传递私钥。
 3. 在 App 的设置中点击“导入配置与私钥”。第一个文件选择器选 JSON，第二个选私钥 PEM；不要误选公钥 PEM。
 4. 显示“已配置”后返回首页，点击“选择城市”搜索并选择结果，或者“使用当前位置”并授予定位权限。

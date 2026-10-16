@@ -14,11 +14,17 @@ try {
     Show-WeatherText '导入配置与私钥'
     Tap-WeatherText '导入配置与私钥'
     Tap-HistoryDescription 'Show roots'
-    Tap-WeatherText 'Android SDK built for x86_64'
+    # The current location can have the same label behind the drawer; use its last (drawer) node.
+    $storageNode=(Get-WeatherUi).SelectNodes('//node') | Where-Object { $_.text -eq 'Android SDK built for x86_64' } | Select-Object -Last 1
+    if (-not $storageNode -or $storageNode.bounds -notmatch '\[(\d+),(\d+)\]\[(\d+),(\d+)\]') { throw 'Storage drawer entry missing.' }
+    Invoke-WeatherDevice shell input tap ([int](([int]$Matches[1]+[int]$Matches[3])/2)) ([int](([int]$Matches[2]+[int]$Matches[4])/2)) | Out-Null
+    Wait-HistoryText 'Download'
     Tap-WeatherText 'Download'
     Show-HistoryText $folder
     Tap-WeatherText $folder
+    Wait-HistoryText 'qweather.local.json'
     Tap-WeatherText 'qweather.local.json'
+    Wait-HistoryText 'ed25519-private.pem'
     Tap-WeatherText 'ed25519-private.pem'
     Wait-HistoryText '已配置'
     Write-Output 'PASS credentials imported through normal UI and stored on the dedicated emulator'

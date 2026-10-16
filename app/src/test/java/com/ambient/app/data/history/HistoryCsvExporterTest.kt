@@ -6,9 +6,12 @@ import com.ambient.app.domain.environment.EnvironmentSnapshot
 import com.ambient.app.domain.history.EnvironmentRecord
 import com.ambient.app.domain.history.HistoryException
 import com.ambient.app.domain.history.HistoryExportDraft
+import com.ambient.app.domain.history.HistoryFilter
 import com.ambient.app.domain.history.HistoryRepository
+import com.ambient.app.domain.history.HistoryTrend
 import com.ambient.app.domain.history.RecordSummary
 import com.ambient.app.domain.history.SnapshotDraft
+import com.ambient.app.domain.history.TrendMetric
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -22,6 +25,7 @@ import java.io.OutputStream
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.UUID
 
@@ -45,6 +49,9 @@ class HistoryCsvExporterTest {
         var visits = 0
         var afterRecord: ((Int) -> Unit)? = null
         override fun observeRecords(): Flow<List<RecordSummary>> = flowOf(emptyList())
+        override fun observeAreas(): Flow<List<String>> = error("Export must not select areas")
+        override fun observeFilteredRecords(filter: HistoryFilter, zone: ZoneId): Flow<List<RecordSummary>> = error("Export must read all records")
+        override fun observeTrend(filter: HistoryFilter, metric: TrendMetric, zone: ZoneId): Flow<HistoryTrend> = error("Export must not read trends")
         override fun observeRecord(id: String): Flow<EnvironmentRecord?> = flowOf(records.firstOrNull { it.id == id })
         override suspend fun visitRecordsForExport(consume: (EnvironmentRecord) -> Unit): Int {
             visits++

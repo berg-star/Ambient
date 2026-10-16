@@ -4,6 +4,7 @@ import com.ambient.app.domain.environment.DataSource
 import com.ambient.app.domain.environment.EnvironmentSnapshot
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
+import java.time.ZoneId
 
 data class SnapshotDraft(val id: String, val snapshot: EnvironmentSnapshot, val wasCached: Boolean)
 
@@ -29,6 +30,9 @@ data class RecordSummary(
 
 interface HistoryRepository {
     fun observeRecords(): Flow<List<RecordSummary>>
+    fun observeAreas(): Flow<List<String>>
+    fun observeFilteredRecords(filter: HistoryFilter, zone: ZoneId): Flow<List<RecordSummary>>
+    fun observeTrend(filter: HistoryFilter, metric: TrendMetric, zone: ZoneId): Flow<HistoryTrend>
     fun observeRecord(id: String): Flow<EnvironmentRecord?>
     /** Visits a consistent, newest-first snapshot on a background thread without retaining every payload. */
     suspend fun visitRecordsForExport(consume: (EnvironmentRecord) -> Unit): Int

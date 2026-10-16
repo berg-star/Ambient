@@ -30,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +47,7 @@ import com.ambient.app.ui.components.WindCompass
 import com.ambient.app.ui.history.HistoryDetailState
 import com.ambient.app.ui.history.HistoryViewModel
 import com.ambient.app.ui.history.HistoryExportViewModel
+import com.ambient.app.ui.history.HistoryListState
 import com.ambient.app.ui.theme.AmbientPanel
 
 @Composable
@@ -53,28 +56,48 @@ fun HistoryScreen(history: HistoryViewModel, export: HistoryExportViewModel, onO
     val detail by history.detail.collectAsStateWithLifecycle()
     val selectedId by history.selectedRecordId.collectAsStateWithLifecycle()
     val action by history.actions.collectAsStateWithLifecycle()
+    val all by history.allRecords.collectAsStateWithLifecycle()
+    val filter by history.filter.collectAsStateWithLifecycle()
+    val comparisonIds by history.comparisonIds.collectAsStateWithLifecycle()
+    val visible = if (list.appliedFilter == filter) list else HistoryListState(appliedFilter = filter)
+    val filterActive = filter.areaLabel != null || filter.fromDate != null || filter.toDate != null
+    var showTrend by rememberSaveable { mutableStateOf(false) }
     BackHandler(selectedId != null) { history.closeDetail() }
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { PageHeading("JOURNAL / 环境记录", "留住这一刻", "按下保存，让每一次观察都有迹可循。") }
-        item { HistoryExportControl(export, !list.loading && list.error == null && list.records.isNotEmpty() && !action.busy) }
+        if (all.records.isNotEmpty() || filterActive) item { HistoryFilterControl(history) }
+        item { HistoryExportControl(export, !all.loading && all.error == null && all.records.isNotEmpty() && !action.busy) {
+            TextButton(onClick = { showTrend = true }, enabled = !all.loading && all.error == null && all.records.isNotEmpty()) { Text("区域趋势 · 可选") }
+        } }
+        if (all.records.isNotEmpty() || comparisonIds.isNotEmpty()) item { HistoryComparisonControl(history) }
         action.message?.let { message -> item { Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) } }
         if (selectedId == null) action.error?.let { error -> item { Text(error, color = MaterialTheme.colorScheme.error) } }
         when {
-            list.loading -> item {
+            visible.loading -> item {
                 Row(Modifier.padding(vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     Text("正在读取本机记录…", style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            list.error != null -> item {
+            visible.error != null -> item {
                 AmbientPanel {
                     Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(list.error!!, color = MaterialTheme.colorScheme.error)
+                        Text(visible.error, color = MaterialTheme.colorScheme.error)
                         TextButton(onClick = history::retry) { Text("重试") }
                     }
                 }
             }
-            list.records.isEmpty() -> item {
+            visible.records.isEmpty() && (filterActive || all.records.isNotEmpty()) -> item {
+                AmbientPanel {
+                    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("没有符合筛选的记录", style = MaterialTheme.typography.titleMedium)
+                        Text("按区域和原数据获取日期筛选，不会删除历史。", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TextButton(onClick = history::clearFilter) { Text("重置筛选") }
+                    }
+                }
+            }
+            visible.records.isEmpty() -> item {
                 AmbientPanel {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 30.dp),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -87,19 +110,22 @@ fun HistoryScreen(history: HistoryViewModel, export: HistoryExportViewModel, onO
                 }
             }
             else -> {
-                item { Text("${list.records.size} 条记录 · 按保存时间排列", style = MaterialTheme.typography.labelMedium,
+                item { Text("${visible.records.size} 条记录 · 按保存时间排列", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                items(list.records, key = { it.id }) { record -> RecordCard(record) { history.open(record.id) } }
+                items(visible.records, key = { it.id }) { record ->
+                    RecordCard(record, comparisonIds.indexOf(record.id), { history.toggleComparison(record.id) }) { history.open(record.id) }
+                }
             }
         }
         item { Text("仅保存在这部手机 · 不自动采集或上传", style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 12.dp)) }
     }
     selectedId?.let { id -> RecordDetailDialog(history, if (detail.id == id) detail else HistoryDetailState(id, loading = true)) }
+    if (showTrend) HistoryTrendDialog(history) { showTrend = false }
 }
 
 @Composable
-private fun RecordCard(record: RecordSummary, onClick: () -> Unit) {
+private fun RecordCard(record: RecordSummary, comparisonIndex: Int, onCompare: () -> Unit, onClick: () -> Unit) {
     AmbientPanel(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -114,6 +140,9 @@ private fun RecordCard(record: RecordSummary, onClick: () -> Unit) {
             }
             Text("数据获取 ${historyTime(record.fetchedAt)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (record.note.isNotBlank()) Text(record.note, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+            TextButton(onClick = onCompare, modifier = Modifier.semantics {
+                contentDescription = "${if (comparisonIndex < 0) "选择对比" else "取消对比"}：${record.areaLabel}，获取${historyTime(record.fetchedAt)}，备注：${record.note.ifBlank { "未添加" }}"
+            }) { Text(if (comparisonIndex < 0) "选择对比" else "已选 ${if (comparisonIndex == 0) "A" else "B"} · 取消") }
         }
     }
 }

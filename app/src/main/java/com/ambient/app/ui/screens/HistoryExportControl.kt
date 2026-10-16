@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -38,9 +39,10 @@ fun HistoryExportDestinationHandler(model: HistoryExportViewModel) {
 }
 
 @Composable
-fun HistoryExportControl(model: HistoryExportViewModel, enabled: Boolean) {
+fun HistoryExportControl(model: HistoryExportViewModel, enabled: Boolean, trailingContent: @Composable () -> Unit = {}) {
     val state by model.state.collectAsStateWithLifecycle()
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedButton(onClick = model::prepare, enabled = enabled && !state.busy) {
             Text(when (state.stage) {
                 ExportStage.IDLE -> "导出 CSV"
@@ -48,6 +50,8 @@ fun HistoryExportControl(model: HistoryExportViewModel, enabled: Boolean) {
                 ExportStage.CHOOSING -> "选择保存位置…"
                 ExportStage.WRITING -> "正在导出…"
             })
+        }
+        trailingContent()
         }
         Text("全部快照 · 每项指标一行，保留时间、来源与备注", style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)

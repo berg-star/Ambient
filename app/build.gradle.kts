@@ -13,8 +13,8 @@ android {
         applicationId = "com.ambient.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.3.1"
+        versionCode = 5
+        versionName = "0.4.0"
     }
     buildTypes {
         release {
@@ -40,5 +40,10 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.gson)
+    implementation(libs.okhttp)
+    implementation(libs.eddsa)
     testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
 }

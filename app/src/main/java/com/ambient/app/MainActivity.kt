@@ -40,8 +40,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.content.edit
-import com.ambient.app.data.environment.CachedEnvironmentRepository
-import com.ambient.app.data.environment.DemoEnvironmentDataService
+import com.ambient.app.data.environment.qweather.AndroidEnvironmentRepository
+import com.ambient.app.data.location.AndroidAreaLocator
+import com.ambient.app.ui.screens.WeatherSettingsCard
 import com.ambient.app.data.sensor.AndroidSensorRepository
 import com.ambient.app.data.location.AndroidLocationSpeedRepository
 import com.ambient.app.ui.location.SpeedViewModel
@@ -126,7 +127,7 @@ private fun AmbientApp(
 ) {
     val context = LocalContext.current.applicationContext
     val overview: EnvironmentViewModel = viewModel(factory = remember {
-        ambientFactory { EnvironmentViewModel(CachedEnvironmentRepository(DemoEnvironmentDataService())) }
+        ambientFactory { EnvironmentViewModel(AndroidEnvironmentRepository(context), AndroidAreaLocator(context)) }
     })
     val sensors: SensorsViewModel = viewModel(factory = remember {
         ambientFactory { SensorsViewModel(AndroidSensorRepository(context)) }
@@ -184,11 +185,16 @@ private fun AmbientApp(
                 themeStyle = themeStyle,
                 onThemeStyleChange = onThemeStyleChange,
                 modifier = contentModifier,
+                weatherContent = { WeatherSettingsCard(overview) },
             )
             else when (selected) {
                 Destination.OVERVIEW -> {
                     val state by overview.state.collectAsStateWithLifecycle()
-                    EnvironmentScreen(state, overview::refresh, { destination = Destination.SENSORS.name }, contentModifier)
+                    LifecycleResumeEffect(overview) {
+                        onPauseOrDispose { overview.cancelLocation() }
+                    }
+                    EnvironmentScreen(state, overview::refresh, { destination = Destination.SENSORS.name }, contentModifier,
+                        overview = overview, onSettings = { showSettings = true })
                 }
                 Destination.SENSORS -> {
                     LifecycleResumeEffect(speed) {

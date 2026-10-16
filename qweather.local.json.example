@@ -1,0 +1,7 @@
+{
+  "developerId": "",
+  "projectId": "",
+  "credentialId": "",
+  "apiHost": "",
+  "privateKeyFile": "secrets/qweather/ed25519-private.pem"
+}

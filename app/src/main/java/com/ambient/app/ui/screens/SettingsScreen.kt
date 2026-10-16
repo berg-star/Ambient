@@ -44,6 +44,7 @@ fun SettingsScreen(
     themeStyle: ThemeStyle,
     onThemeStyleChange: (ThemeStyle) -> Unit,
     modifier: Modifier = Modifier,
+    weatherContent: @Composable () -> Unit = {},
 ) {
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -86,31 +87,18 @@ fun SettingsScreen(
         }
         Spacer(Modifier.height(2.dp))
         SectionLabel("数据与服务")
-        AmbientPanel {
-            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Text("和风天气 QWeather", style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold)
-                    StatusBadge("尚未连接")
-                }
-                Text("第一阶段仅展示区域环境演示数据，没有发起天气请求，也没有保存任何 API 密钥。",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("接入前将核对官方文档、身份认证、专属 API Host 与接口费用。",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        weatherContent()
         SectionLabel("每个数值，都有来处")
         AmbientPanel {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 DataExplanation("手机实测", "来自这部手机实际提供的传感器。无硬件时明确显示不支持。")
-                DataExplanation("区域环境", "未来来自天气服务，代表一定区域的环境，不等同于手机周围的直接测量。当前均为演示。")
+                DataExplanation("区域环境", "连接和风后来自所选区域的网络 API，非手机实测；演示模式始终明确标注。海平面气压不等于手机所在地气压。")
                 DataExplanation("计算与估计", "合成强度由 XYZ 分量计算；去重力加速度来自系统计算，与含重力原始读数分别标注。")
-                DataExplanation("定位速度", "开启后使用系统卫星定位提供的速度和精度；不依赖 Google 服务。仅在探测页且应用处于前台时定位，不保存或上传位置。")
+                DataExplanation("定位与隐私", "速度定位仅在探测页前台运行，不上传。首页的“使用当前位置”获取一次位置，用于请求和风天气；坐标保留两位小数后传给和风，所选区域和缓存仅在本机加密保存。")
                 DataExplanation("海拔", "需要独立地形数据源。第一阶段不展示估算海拔，定位高度也不会被当作准确地形海拔。")
             }
         }
-        Text("Ambient · 第一阶段\n个人环境探测工具 · 无账号 · 无自建服务器",
+        Text("Ambient · 0.4.0\n个人环境探测工具 · 无账号 · 无自建服务器",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
     }

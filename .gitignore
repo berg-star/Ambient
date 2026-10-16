@@ -6,6 +6,7 @@
 dist/
 local.properties
 toolchain.local.ps1
+qweather.local.json
 *.jks
 *.keystore
 *.pem

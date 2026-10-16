@@ -43,6 +43,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ambient.app.domain.environment.EnvironmentMetric
+import com.ambient.app.domain.environment.DataSource
+import com.ambient.app.ui.overview.EnvironmentViewModel
+import androidx.compose.ui.platform.LocalUriHandler
 import com.ambient.app.ui.components.InstrumentSymbol
 import com.ambient.app.ui.components.MetricSourceLabel
 import com.ambient.app.ui.overview.EnvironmentUiState
@@ -58,6 +61,8 @@ fun EnvironmentScreen(
     onRefresh: () -> Unit,
     onOpenSensors: () -> Unit,
     modifier: Modifier = Modifier,
+    overview: EnvironmentViewModel? = null,
+    onSettings: () -> Unit = {},
 ) {
     val snapshot = state.snapshot
     val temperature = snapshot?.metrics?.firstOrNull { it.id == "temperature" }
@@ -67,6 +72,8 @@ fun EnvironmentScreen(
         ?.sortedBy { priority.indexOf(it.id).let { index -> if (index >= 0) index else priority.size } }.orEmpty()
     val visuals = LocalAmbientVisuals.current
     var selectedMetric by remember { mutableStateOf<EnvironmentMetric?>(null) }
+    val demo = snapshot?.isDemo ?: !state.preferences.enabled
+    val uriHandler = LocalUriHandler.current
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 22.dp, vertical = 4.dp),
@@ -76,28 +83,30 @@ fun EnvironmentScreen(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(snapshot?.areaLabel ?: "区域数据尚未就绪", style = MaterialTheme.typography.labelLarge,
+                    Text(snapshot?.areaLabel ?: state.preferences.area?.label ?: "区域数据尚未就绪", style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium)
                     Text(snapshot?.updatedAt?.let {
-                        "演示加载 " + DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault()).format(it)
+                        (if (demo) "演示加载 " else if (state.isCached) "缓存 · 获取于 " else "获取于 ") +
+                            DateTimeFormatter.ofPattern("MM-dd HH:mm:ss").withZone(ZoneId.systemDefault()).format(it)
                     } ?: "尚无加载记录", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                TextButton(onClick = onRefresh, enabled = !state.isRefreshing,
+                TextButton(onClick = onRefresh, enabled = !state.isRefreshing && !state.isLocating,
                     contentPadding = PaddingValues(horizontal = 8.dp)) {
                     if (state.isRefreshing) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
                     else RefreshSymbol()
                     Spacer(Modifier.width(6.dp))
-                    Text(if (state.isRefreshing) "加载中" else "刷新演示", style = MaterialTheme.typography.labelMedium)
+                    Text(if (state.isRefreshing) "加载中" else if (demo) "刷新演示" else "刷新", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
         item { EnvironmentModeSwitch(onOpenSensors) }
+        if (overview != null) item { WeatherAreaControls(overview, onSettings) }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp),
                 modifier = Modifier.padding(vertical = 1.dp)) {
                 Canvas(Modifier.size(4.dp)) { drawCircle(visuals.highlightColor) }
-                Text("演示数据 · 未连接天气服务，非所在地实况", style = MaterialTheme.typography.labelSmall,
+                Text(if (demo) "演示数据 · 固定示例，非所在地实况" else "和风天气 · 区域 API，非手机实测", style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -117,7 +126,7 @@ fun EnvironmentScreen(
                         ThemeStyle.MISTY_DUSK -> "环境一览"
                         ThemeStyle.FLOWING_GLASS -> "环境手记"
                     }, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-                    Text("轻触了解 · 示例数值", style = MaterialTheme.typography.labelSmall,
+                    Text(if (demo) "轻触了解 · 示例数值" else "轻触了解 · 数据来源", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -169,6 +178,22 @@ fun EnvironmentScreen(
             Text("暂无区域数据。你仍可以前往探测页查看手机支持的传感器。",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        snapshot?.notices?.forEach { notice -> item {
+            Text(notice, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } }
+        if (snapshot != null && !snapshot.isDemo) item {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("数据来源：和风天气 QWeather", style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                snapshot.attributions.forEach { attribution ->
+                    Text(attribution, style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable {
+                            if (attribution.startsWith("https://")) runCatching { uriHandler.openUri(attribution) }
+                        }.padding(vertical = 6.dp))
+                }
+            }
+        }
         item {
             Text("来源清晰，每个数值都有来处。", modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -183,7 +208,8 @@ fun EnvironmentScreen(
                     MetricSourceLabel(metric)
                     Text(metric.description)
                     Text(if (metric.id == "altitude") "海拔需要独立的数据源，手机定位高度不等同于准确的地形海拔。"
-                        else "当前区域指标是固定演示内容，尚未连接网络服务或定位，不代表你所在位置的环境。",
+                        else if (metric.source == DataSource.DEMO) "当前指标是固定演示内容，不代表你所在位置的环境。"
+                        else "网络 API 数据代表所选区域的环境，不是手机传感器实测。暂无数据时显示横线，不使用演示值补齐。",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },

@@ -9,7 +9,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Memory cache for this stage; persistent region caching is part of network integration. */
+/** Small memory-only adapter for fixtures and services that do not require persistent storage. */
 class CachedEnvironmentRepository(
     private val service: EnvironmentDataService,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,

@@ -44,10 +44,11 @@ import com.ambient.app.ui.components.StatusBadge
 import com.ambient.app.ui.components.WindCompass
 import com.ambient.app.ui.history.HistoryDetailState
 import com.ambient.app.ui.history.HistoryViewModel
+import com.ambient.app.ui.history.HistoryExportViewModel
 import com.ambient.app.ui.theme.AmbientPanel
 
 @Composable
-fun HistoryScreen(history: HistoryViewModel, onOpenOverview: () -> Unit, modifier: Modifier = Modifier) {
+fun HistoryScreen(history: HistoryViewModel, export: HistoryExportViewModel, onOpenOverview: () -> Unit, modifier: Modifier = Modifier) {
     val list by history.records.collectAsStateWithLifecycle()
     val detail by history.detail.collectAsStateWithLifecycle()
     val selectedId by history.selectedRecordId.collectAsStateWithLifecycle()
@@ -55,6 +56,7 @@ fun HistoryScreen(history: HistoryViewModel, onOpenOverview: () -> Unit, modifie
     BackHandler(selectedId != null) { history.closeDetail() }
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { PageHeading("JOURNAL / 环境记录", "留住这一刻", "按下保存，让每一次观察都有迹可循。") }
+        item { HistoryExportControl(export, !list.loading && list.error == null && list.records.isNotEmpty() && !action.busy) }
         action.message?.let { message -> item { Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) } }
         if (selectedId == null) action.error?.let { error -> item { Text(error, color = MaterialTheme.colorScheme.error) } }
         when {

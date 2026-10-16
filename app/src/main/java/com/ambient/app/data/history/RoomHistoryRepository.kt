@@ -37,6 +37,13 @@ class RoomHistoryRepository internal constructor(
         } })
     }.flowOn(Dispatchers.IO)
 
+    override suspend fun visitRecordsForExport(consume: (EnvironmentRecord) -> Unit): Int = withContext(Dispatchers.IO) {
+        daoFactory().visitForExport { row ->
+            consume(EnvironmentRecord(row.id, Instant.ofEpochMilli(row.savedAtEpochMillis), row.wasCached,
+                SnapshotCodec.decode(row.payload), row.note))
+        }
+    }
+
     override suspend fun save(draft: SnapshotDraft, note: String): String = withContext(Dispatchers.IO) {
         SnapshotPolicy.validate(draft.snapshot)
         val normalized = SnapshotPolicy.normalizeNote(note)

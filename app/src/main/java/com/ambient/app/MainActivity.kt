@@ -42,6 +42,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.content.edit
 import com.ambient.app.data.environment.qweather.AndroidEnvironmentRepository
 import com.ambient.app.data.history.RoomHistoryRepository
+import com.ambient.app.data.history.HistoryCsvExporter
+import com.ambient.app.ui.history.HistoryExportViewModel
+import com.ambient.app.ui.screens.HistoryExportDestinationHandler
 import com.ambient.app.ui.history.HistoryViewModel
 import com.ambient.app.ui.screens.SnapshotSaveControl
 import com.ambient.app.data.location.AndroidAreaLocator
@@ -132,9 +135,14 @@ private fun AmbientApp(
     val overview: EnvironmentViewModel = viewModel(factory = remember {
         ambientFactory { EnvironmentViewModel(AndroidEnvironmentRepository(context), AndroidAreaLocator(context)) }
     })
+    val historyRepository = remember { RoomHistoryRepository(context) }
     val history: HistoryViewModel = viewModel(factory = remember {
-        ambientFactory { HistoryViewModel(RoomHistoryRepository(context)) }
+        ambientFactory { HistoryViewModel(historyRepository) }
     })
+    val export: HistoryExportViewModel = viewModel(factory = remember {
+        ambientFactory { HistoryExportViewModel(HistoryCsvExporter(context, historyRepository)) }
+    })
+    HistoryExportDestinationHandler(export)
     val sensors: SensorsViewModel = viewModel(factory = remember {
         ambientFactory { SensorsViewModel(AndroidSensorRepository(context)) }
     })
@@ -210,7 +218,7 @@ private fun AmbientApp(
                     }
                     SensorsScreen(sensors, contentModifier) { LocationSpeedCard(speed) }
                 }
-                Destination.HISTORY -> HistoryScreen(history, { destination = Destination.OVERVIEW.name }, contentModifier)
+                Destination.HISTORY -> HistoryScreen(history, export, { destination = Destination.OVERVIEW.name }, contentModifier)
             }
         }
     }

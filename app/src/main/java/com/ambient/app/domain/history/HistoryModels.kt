@@ -30,6 +30,8 @@ data class RecordSummary(
 interface HistoryRepository {
     fun observeRecords(): Flow<List<RecordSummary>>
     fun observeRecord(id: String): Flow<EnvironmentRecord?>
+    /** Visits a consistent, newest-first snapshot on a background thread without retaining every payload. */
+    suspend fun visitRecordsForExport(consume: (EnvironmentRecord) -> Unit): Int
     suspend fun save(draft: SnapshotDraft, note: String): String
     suspend fun updateNote(id: String, note: String)
     suspend fun delete(id: String)

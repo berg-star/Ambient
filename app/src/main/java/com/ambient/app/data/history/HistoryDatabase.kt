@@ -11,6 +11,9 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "environment_snapshots", indices = [Index("savedAtEpochMillis")])
@@ -46,6 +49,25 @@ interface HistoryDao {
     fun observeSummaries(): Flow<List<SnapshotSummaryRow>>
     @Query("SELECT * FROM environment_snapshots WHERE id = :id")
     fun observeRecord(id: String): Flow<SnapshotEntity?>
+    @Query("SELECT * FROM environment_snapshots ORDER BY savedAtEpochMillis DESC, id DESC LIMIT :limit OFFSET :offset")
+    suspend fun exportBatch(limit: Int, offset: Int): List<SnapshotEntity>
+
+    /** One transaction keeps pagination consistent if records are saved, edited, or deleted during export. */
+    @Transaction
+    suspend fun visitForExport(consume: (SnapshotEntity) -> Unit): Int {
+        val batchSize = 64
+        var count = 0
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val batch = exportBatch(batchSize, count)
+            for (row in batch) {
+                currentCoroutineContext().ensureActive()
+                consume(row)
+                count++
+            }
+            if (batch.size < batchSize) return count
+        }
+    }
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entity: SnapshotEntity): Long
     @Query("UPDATE environment_snapshots SET note = :note WHERE id = :id")

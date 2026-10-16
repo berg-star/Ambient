@@ -1,0 +1,3 @@
+# Copy to toolchain.local.ps1 (ignored by Git); use your existing tools.
+$AmbientJdk = 'L:\AI-Accounting\.tools\jdk17'
+$AmbientSdk = 'L:\AI-Accounting\.tools\android-sdk'

@@ -13,6 +13,7 @@ import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import org.junit.Assert.*
 import org.junit.Test
+import java.io.IOException
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -22,8 +23,12 @@ import java.util.Base64
 class WeatherRepositoryTest {
     private class MemoryStore : WeatherStore {
         val files = mutableMapOf<String, String>()
+        var failSnapshotWrites = false
         override fun read(name: String) = files[name]
-        override fun write(name: String, text: String) { files[name] = text }
+        override fun write(name: String, text: String) {
+            if (name == "snapshot" && failSnapshotWrites) throw IOException("Synthetic cache write failure")
+            files[name] = text
+        }
         override fun delete(name: String) { files.remove(name) }
     }
     private class TestClock(var now: Instant = Instant.parse("2026-10-16T08:00:00Z")) : Clock() {
@@ -40,10 +45,10 @@ class WeatherRepositoryTest {
     private val city = EnvironmentArea("测试城", 39.92, 116.41)
     private fun setup(server: MockWebServer, store: MemoryStore, clock: Clock) = AndroidEnvironmentRepository(
         { store }, clock, { QWeatherClient(server.url("/").toString(), OkHttpClient()) })
-    private fun success(server: MockWebServer) {
+    private fun success(server: MockWebServer, temperature: Int = 20) {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse = MockResponse().setBody(
-                if (request.path!!.startsWith("/weather")) """{"metadata":{},"temperature":{"value":20,"unit":"°C"}}"""
+                if (request.path!!.startsWith("/weather")) """{"metadata":{},"temperature":{"value":$temperature,"unit":"°C"}}"""
                 else """{"metadata":{},"indexes":[],"pollutants":[]}""")
         }
     }
@@ -67,6 +72,7 @@ class WeatherRepositoryTest {
             assertEquals(snapshot, failed.snapshot)
             assertTrue(failed.error!!.contains("503"))
             assertEquals(snapshot.updatedAt, failed.snapshot!!.updatedAt)
+            assertTrue(failed.isCached)
         }
     }
 
@@ -76,11 +82,13 @@ class WeatherRepositoryTest {
             val repository = setup(server, MemoryStore(), TestClock())
             repository.importCredentials(config, testPem()); repository.selectArea(city)
             val first = repository.refresh()
+            assertFalse(first.isCached)
             assertEquals(2, server.requestCount)
             val second = repository.refresh()
             assertEquals(2, server.requestCount)
             assertEquals(first.snapshot, second.snapshot)
             assertTrue(second.error!!.contains("30 秒"))
+            assertTrue(second.isCached)
         }
     }
 
@@ -95,7 +103,40 @@ class WeatherRepositoryTest {
             server.dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest) = MockResponse().setResponseCode(404)
             }
-            assertNull(repository.refresh().snapshot)
+            val failed = repository.refresh()
+            assertNull(failed.snapshot)
+            assertFalse(failed.isCached)
+        }
+    }
+
+    @Test fun failedCacheWriteReturnsFreshDataAndLaterOfflineRefreshReturnsTheActualOldCache() = runBlocking {
+        MockWebServer().use { server ->
+            success(server)
+            val store = MemoryStore(); val clock = TestClock()
+            val repository = setup(server, store, clock)
+            repository.importCredentials(config, testPem()); repository.selectArea(city)
+            val old = repository.refresh().snapshot!!
+
+            clock.now = clock.now.plusSeconds(40)
+            success(server, temperature = 30)
+            store.failSnapshotWrites = true
+            val fresh = repository.refresh()
+            assertNotNull(fresh.error)
+            assertTrue(fresh.error!!.contains("缓存写入失败"))
+            assertFalse(fresh.isCached)
+            assertEquals(clock.now, fresh.snapshot!!.updatedAt)
+            assertEquals("30.0", fresh.snapshot!!.metrics.first { it.id == "temperature" }.value)
+            assertEquals(old, repository.cachedSnapshot())
+
+            clock.now = clock.now.plusSeconds(40)
+            server.dispatcher = object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest) = MockResponse().setResponseCode(503)
+            }
+            val offline = repository.refresh()
+            assertNotNull(offline.error)
+            assertTrue(offline.isCached)
+            assertEquals(old, offline.snapshot)
+            assertEquals("20.0", offline.snapshot!!.metrics.first { it.id == "temperature" }.value)
         }
     }
 

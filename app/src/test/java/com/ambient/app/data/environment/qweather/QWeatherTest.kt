@@ -1,5 +1,7 @@
 package com.ambient.app.data.environment.qweather
 
+import com.ambient.app.data.environment.SnapshotCodec
+
 import com.ambient.app.domain.environment.DataSource
 import com.ambient.app.domain.environment.EnvironmentArea
 import com.ambient.app.domain.environment.EnvironmentException

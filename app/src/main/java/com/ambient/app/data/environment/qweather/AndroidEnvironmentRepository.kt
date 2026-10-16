@@ -2,6 +2,7 @@ package com.ambient.app.data.environment.qweather
 
 import android.content.Context
 import com.ambient.app.data.environment.DemoEnvironmentDataService
+import com.ambient.app.data.environment.SnapshotCodec
 import com.ambient.app.domain.environment.EnvironmentArea
 import com.ambient.app.domain.environment.EnvironmentException
 import com.ambient.app.domain.environment.EnvironmentPreferences
@@ -112,12 +113,12 @@ class AndroidEnvironmentRepository internal constructor(
                 val snapshot = QWeatherDataService(client(), area, clock).fetch()
                 try { store.write("snapshot", SnapshotCodec.encode(snapshot)) }
                 catch (_: Exception) {
-                    return@withLock EnvironmentResult(snapshot, "本次数据已获取，但缓存写入失败；关闭后可能无法离线查看。")
+                    return@withLock EnvironmentResult(snapshot, "本次数据已获取，但缓存写入失败；关闭后可能无法离线查看。", isCached = false)
                 }
                 EnvironmentResult(snapshot)
             } catch (e: CancellationException) { throw e }
-            catch (e: EnvironmentException) { EnvironmentResult(old, e.userMessage) }
-            catch (_: Exception) { EnvironmentResult(old, "本地配置或缓存读取失败，请在设置中重新导入凭据。") }
+            catch (e: EnvironmentException) { EnvironmentResult(old, e.userMessage, isCached = old != null) }
+            catch (_: Exception) { EnvironmentResult(old, "本地配置或缓存读取失败，请在设置中重新导入凭据。", isCached = old != null) }
         }
     }
 }

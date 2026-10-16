@@ -11,8 +11,15 @@ function Invoke-WeatherDevice {
     $result
 }
 function Get-WeatherUi {
-    Invoke-WeatherDevice shell uiautomator dump /data/local/tmp/ambient-weather-ui.xml | Out-Null
-    [xml]((Invoke-WeatherDevice exec-out cat /data/local/tmp/ambient-weather-ui.xml) -join "`n")
+    for ($attempt = 0; $attempt -lt 3; $attempt++) {
+        try {
+            Invoke-WeatherDevice shell uiautomator dump /data/local/tmp/ambient-weather-ui.xml | Out-Null
+            return [xml]((Invoke-WeatherDevice exec-out cat /data/local/tmp/ambient-weather-ui.xml) -join "`n")
+        } catch {
+            if ($attempt -eq 2) { throw }
+            Start-Sleep -Milliseconds 300
+        }
+    }
 }
 function Get-WeatherTexts {
     (Get-WeatherUi).SelectNodes('//node') | ForEach-Object { if ($_.text) { $_.text } }

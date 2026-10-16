@@ -65,6 +65,7 @@ fun EnvironmentScreen(
     modifier: Modifier = Modifier,
     overview: EnvironmentViewModel? = null,
     onSettings: () -> Unit = {},
+    saveContent: @Composable () -> Unit = {},
 ) {
     val snapshot = state.snapshot
     val temperature = snapshot?.metrics?.firstOrNull { it.id == "temperature" }
@@ -119,6 +120,7 @@ fun EnvironmentScreen(
             }
         }
         if (temperature != null) item { TemperatureCard(temperature) { selectedMetric = temperature } }
+        item { saveContent() }
         if (otherMetrics.isNotEmpty()) {
             item {
                 Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),

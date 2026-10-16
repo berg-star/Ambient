@@ -5,9 +5,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import java.io.IOException
@@ -34,6 +36,7 @@ class CachedEnvironmentRepositoryTest {
         val success = repository.refresh()
         assertSame(original, success.snapshot)
         assertNull(success.error)
+        assertFalse(success.isCached)
 
         failNextFetch = true
         val failed = repository.refresh()
@@ -41,6 +44,7 @@ class CachedEnvironmentRepositoryTest {
         assertEquals(loadedAt, failed.snapshot?.updatedAt)
         assertNull(failed.snapshot?.observedAt)
         assertNotNull(failed.error)
+        assertTrue(failed.isCached)
     }
 
     @Test
@@ -52,6 +56,7 @@ class CachedEnvironmentRepositoryTest {
         val result = repository.refresh()
         assertNull(result.snapshot)
         assertNotNull(result.error)
+        assertFalse(result.isCached)
     }
 
     @Test
@@ -81,5 +86,6 @@ class CachedEnvironmentRepositoryTest {
         assertSame(original, afterCancellation.snapshot)
         assertEquals(loadedAt, afterCancellation.snapshot?.updatedAt)
         assertNotNull(afterCancellation.error)
+        assertTrue(afterCancellation.isCached)
     }
 }

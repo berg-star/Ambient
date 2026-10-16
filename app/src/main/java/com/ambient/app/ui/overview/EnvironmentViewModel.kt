@@ -61,7 +61,7 @@ class EnvironmentViewModel(
         if (!force && age != null && age in 0 until 600) return
         val result = repository.refresh()
         mutableState.value = mutableState.value.copy(snapshot = result.snapshot,
-            error = result.error, isCached = result.error != null && result.snapshot != null)
+            error = result.error, isCached = result.isCached)
     }
 
     private fun runWork(block: suspend () -> Unit) {

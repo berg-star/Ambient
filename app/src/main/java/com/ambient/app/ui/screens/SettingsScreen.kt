@@ -96,9 +96,10 @@ fun SettingsScreen(
                 DataExplanation("计算与估计", "合成强度由 XYZ 分量计算；去重力加速度来自系统计算，与含重力原始读数分别标注。")
                 DataExplanation("定位与隐私", "速度定位仅在探测页前台运行，不上传。首页的“使用当前位置”获取一次位置，用于请求和风天气；坐标保留两位小数后传给和风，所选区域和缓存仅在本机加密保存。")
                 DataExplanation("海拔", "需要独立地形数据源。第一阶段不展示估算海拔，定位高度也不会被当作准确地形海拔。")
+                DataExplanation("环境记录", "手动保存真实区域快照，保留原获取时间和缓存标记。历史记录仅保存在本机；清除天气凭据不会删除记录，卸载或清除 App 数据会删除记录。")
             }
         }
-        Text("Ambient · 0.4.1\n个人环境探测工具 · 无账号 · 无自建服务器",
+        Text("Ambient · 0.5.0\n个人环境探测工具 · 无账号 · 无自建服务器",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
     }

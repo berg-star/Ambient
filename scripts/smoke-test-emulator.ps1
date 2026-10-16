@@ -1,4 +1,4 @@
-param()
+﻿param()
 . (Join-Path $PSScriptRoot 'environment.ps1')
 $AmbientSerial = 'emulator-5560'
 $AmbientAdb = Join-Path $AmbientSdk 'platform-tools\adb.exe'
@@ -140,10 +140,10 @@ Tap-AmbientNode -Text '设置'
 Tap-AmbientNode -Text '深色'
 Tap-AmbientNode -Text '返回'
 Tap-AmbientNode -Text '记录'
-Assert-AmbientText '后续阶段开放'
+Assert-AmbientText '还没有环境记录'
 Assert-AmbientListening $false
 Save-AmbientScreen 'history-dark'
-Record-AmbientPass 'History placeholder and navigation'
+Record-AmbientPass 'History empty state and navigation'
 
 Tap-AmbientNode -Text '总览'
 $AmbientPid = ((Invoke-AmbientDevice shell pidof com.ambient.app) -join '').Trim()

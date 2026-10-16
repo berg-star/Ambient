@@ -22,7 +22,7 @@ class CachedEnvironmentRepository(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            EnvironmentResult(cached, "数据加载失败，已保留最近一次内容；请稍后重试。")
+            EnvironmentResult(cached, "数据加载失败，已保留最近一次内容；请稍后重试。", isCached = cached != null)
         }
     }
 }

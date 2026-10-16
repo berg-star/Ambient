@@ -34,6 +34,8 @@ fun interface EnvironmentDataService {
 data class EnvironmentResult(
     val snapshot: EnvironmentSnapshot?,
     val error: String? = null,
+    /** True only when snapshot comes from an earlier fetch; an error alone does not imply caching. */
+    val isCached: Boolean = false,
 )
 
 interface EnvironmentRepository {

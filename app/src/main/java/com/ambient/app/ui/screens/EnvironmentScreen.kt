@@ -48,6 +48,8 @@ import com.ambient.app.ui.overview.EnvironmentViewModel
 import androidx.compose.ui.platform.LocalUriHandler
 import com.ambient.app.ui.components.InstrumentSymbol
 import com.ambient.app.ui.components.MetricSourceLabel
+import com.ambient.app.ui.components.WindDirectionIndicator
+import com.ambient.app.ui.components.WindCompass
 import com.ambient.app.ui.overview.EnvironmentUiState
 import com.ambient.app.ui.theme.AmbientPanel
 import com.ambient.app.ui.theme.LocalAmbientVisuals
@@ -206,6 +208,10 @@ fun EnvironmentScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     MetricSourceLabel(metric)
+                    if (metric.id == "windDirection") {
+                        WindCompass(metric.windFromDegrees, metric.value,
+                            Modifier.size(112.dp).align(Alignment.CenterHorizontally))
+                    }
                     Text(metric.description)
                     Text(if (metric.id == "altitude") "海拔需要独立的数据源，手机定位高度不等同于准确的地形海拔。"
                         else if (metric.source == DataSource.DEMO) "当前指标是固定演示内容，不代表你所在位置的环境。"
@@ -286,6 +292,10 @@ private fun TemperatureCard(metric: EnvironmentMetric, onClick: () -> Unit) {
 
 @Composable
 private fun MetricCardContent(metric: EnvironmentMetric, modifier: Modifier = Modifier) {
+    if (metric.id == "windDirection") {
+        WindDirectionIndicator(metric, modifier.padding(horizontal = 13.dp, vertical = 11.dp), compact = true)
+        return
+    }
     val visuals = LocalAmbientVisuals.current
     Column(modifier.padding(horizontal = 13.dp, vertical = 11.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -306,6 +316,10 @@ private fun MetricCardContent(metric: EnvironmentMetric, modifier: Modifier = Mo
 
 @Composable
 private fun MetricRow(metric: EnvironmentMetric, onClick: () -> Unit) {
+    if (metric.id == "windDirection") {
+        WindDirectionIndicator(metric, Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp))
+        return
+    }
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         InstrumentSymbol(metric.id, Modifier.size(17.dp))

@@ -11,6 +11,8 @@ data class EnvironmentMetric(
     val unit: String,
     val source: DataSource,
     val description: String,
+    /** Meteorological source bearing: clockwise from north. Null means no directional arrow. */
+    val windFromDegrees: Double? = null,
 )
 
 data class EnvironmentSnapshot(

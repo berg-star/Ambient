@@ -69,8 +69,13 @@ object QWeatherDecoder {
             "ese" to "东东南", "se" to "东南", "sse" to "南东南", "s" to "南", "ssw" to "南西南",
             "sw" to "西南", "wsw" to "西西南", "w" to "西", "wnw" to "西西北", "nw" to "西北",
             "nnw" to "北西北", "none" to "无风向", "vrb" to "不定")
-        metrics += EnvironmentMetric("windDirection", "风向", compass[direction.string("compass")] ?: "—", "",
-            DataSource.REGIONAL_API, "区域风的来向；非手机指南针朝向。")
+        val directionCode = direction.string("compass")
+        val fromDegrees = if (directionCode in listOf("none", "vrb")) null else
+            direction.number("degree")?.takeIf { it in 0.0..359.0 }
+        val directionLabel = compass[directionCode] ?: fromDegrees?.let { String.format(Locale.US, "%.1f°", it) } ?: "—"
+        metrics += EnvironmentMetric("windDirection", "风向", directionLabel, "",
+            DataSource.REGIONAL_API, "区域风的来向，非手机指南针朝向。罗盘固定上北下南，亮点标出来风方位，箭头由亮点吹向中心；不会随手机转动。",
+            windFromDegrees = fromDegrees)
         add("uv", "紫外线指数", weather.number("uvIndex")?.takeIf { it in 0.0..15.0 }, "UVI",
             "来自和风实时天气服务，没有使用手机光照强度推算紫外线。")
         metrics += EnvironmentMetric("altitude", "地形海拔", "—", "m", DataSource.ESTIMATED,

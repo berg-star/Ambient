@@ -98,7 +98,7 @@ fun SettingsScreen(
                 DataExplanation("海拔", "需要独立地形数据源。第一阶段不展示估算海拔，定位高度也不会被当作准确地形海拔。")
             }
         }
-        Text("Ambient · 0.4.0\n个人环境探测工具 · 无账号 · 无自建服务器",
+        Text("Ambient · 0.4.1\n个人环境探测工具 · 无账号 · 无自建服务器",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
     }

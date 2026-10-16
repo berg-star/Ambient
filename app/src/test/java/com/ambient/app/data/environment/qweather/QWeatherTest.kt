@@ -77,6 +77,7 @@ class QWeatherTest {
         assertEquals("14.0", m.getValue("pm25").value)
         assertEquals("3.5", m.getValue("windSpeed").value)
         assertEquals("东北", m.getValue("windDirection").value)
+        assertEquals(41.0, m.getValue("windDirection").windFromDegrees!!, 0.0)
         assertEquals("0.0", m.getValue("uv").value)
         assertEquals("—", m.getValue("altitude").value)
         assertFalse(snapshot.isDemo)
@@ -108,6 +109,46 @@ class QWeatherTest {
     @Test fun persistentCacheRoundTripsTimeSourcesNoticesAndAttribution() {
         val original = QWeatherDecoder.decode(json(weather), json(air), area, time)
         assertEquals(original, SnapshotCodec.decode(SnapshotCodec.encode(original)))
+    }
+
+    @Test fun windArrowKeepsApiAngleRatherThanGuessingTheSectorMidpoint() {
+        val data = json(weather)
+        val direction = data.getAsJsonObject("wind").getAsJsonObject("direction")
+        direction.addProperty("compass", "ene")
+        direction.addProperty("degree", 68)
+        val metric = QWeatherDecoder.decode(data, null, area, time).metrics.first { it.id == "windDirection" }
+        assertEquals("东东北", metric.value)
+        assertEquals(68.0, metric.windFromDegrees!!, 0.0)
+        assertEquals(DataSource.REGIONAL_API, metric.source)
+    }
+
+    @Test fun variableMissingAndInvalidWindBearingsNeverBecomeNorthArrows() {
+        for (code in listOf("none", "vrb")) {
+            val data = json(weather)
+            val direction = data.getAsJsonObject("wind").getAsJsonObject("direction")
+            direction.addProperty("compass", code)
+            direction.addProperty("degree", 0)
+            assertNull(QWeatherDecoder.decode(data, null, area, time).metrics.first { it.id == "windDirection" }.windFromDegrees)
+        }
+        for (degrees in listOf(-1.0, 360.0, Double.NaN)) {
+            val data = json(weather)
+            data.getAsJsonObject("wind").getAsJsonObject("direction").addProperty("degree", degrees)
+            assertNull(QWeatherDecoder.decode(data, null, area, time).metrics.first { it.id == "windDirection" }.windFromDegrees)
+        }
+        val missing = json(weather)
+        missing.getAsJsonObject("wind").getAsJsonObject("direction").remove("degree")
+        assertNull(QWeatherDecoder.decode(missing, null, area, time).metrics.first { it.id == "windDirection" }.windFromDegrees)
+    }
+
+    @Test fun legacyCacheWithoutBearingStillLoadsWithoutInventingAnArrow() {
+        val original = QWeatherDecoder.decode(json(weather), json(air), area, time)
+        val legacy = json(SnapshotCodec.encode(original))
+        legacy.getAsJsonArray("metrics").forEach { it.asJsonObject.remove("windFromDegrees") }
+        val loaded = SnapshotCodec.decode(legacy.toString())
+        assertEquals(original.updatedAt, loaded.updatedAt)
+        assertEquals(original.areaLabel, loaded.areaLabel)
+        assertEquals("东北", loaded.metrics.first { it.id == "windDirection" }.value)
+        assertNull(loaded.metrics.first { it.id == "windDirection" }.windFromDegrees)
     }
 
     @Test fun retrofitRequestsUseDocumentedPathsAndCoordinatePrecision() = runBlocking {

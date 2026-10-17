@@ -4,11 +4,19 @@ import androidx.lifecycle.ViewModel
 import com.ambient.app.domain.sensor.AccelerationMode
 import com.ambient.app.domain.sensor.SensorKind
 import com.ambient.app.domain.sensor.SensorRepository
+import com.ambient.app.domain.orientation.DisplayRotation
+import com.ambient.app.domain.orientation.OrientationRepository
+import com.ambient.app.domain.orientation.UnavailableOrientationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class SensorsViewModel(private val repository: SensorRepository) : ViewModel() {
+class SensorsViewModel(
+    private val repository: SensorRepository,
+    private val orientationRepository: OrientationRepository = UnavailableOrientationRepository,
+) : ViewModel() {
     val feeds = repository.feeds
+    val orientationCapability = orientationRepository.capability
+    val orientationReading = orientationRepository.state
     private val mutableMonitoringEnabled = MutableStateFlow(true)
     val monitoringEnabled = mutableMonitoringEnabled.asStateFlow()
     private val mutableAccelerationMode = MutableStateFlow(AccelerationMode.LINEAR)
@@ -38,23 +46,28 @@ class SensorsViewModel(private val repository: SensorRepository) : ViewModel() {
     fun setMonitoringEnabled(enabled: Boolean) {
         if (mutableMonitoringEnabled.value == enabled) return
         mutableMonitoringEnabled.value = enabled
-        if (enabled && pageIsActive) repository.start() else repository.stop()
+        if (enabled && pageIsActive) startRepositories() else stopRepositories()
     }
 
     /** Called only while the sensor page is visible and the app is in the foreground. */
     fun start() {
         pageIsActive = true
-        if (mutableMonitoringEnabled.value) repository.start()
+        if (mutableMonitoringEnabled.value) startRepositories()
     }
 
     /** Pausing the page does not change the user's monitoring switch. */
     fun stop() {
         pageIsActive = false
-        repository.stop()
+        stopRepositories()
     }
 
+    fun setDisplayRotation(rotation: DisplayRotation) = orientationRepository.setDisplayRotation(rotation)
+
+    private fun startRepositories() { repository.start(); orientationRepository.start() }
+    private fun stopRepositories() { repository.stop(); orientationRepository.stop() }
+
     override fun onCleared() {
-        repository.stop()
+        stopRepositories()
         super.onCleared()
     }
 }

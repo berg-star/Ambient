@@ -70,6 +70,7 @@ fun SensorsScreen(
     val visibleFeeds = viewModel.visibleFeeds(accelerationMode)
     val virtualDevice = remember { isProbablyEmulator() }
     val visuals = LocalAmbientVisuals.current
+    ObserveSensorDisplayRotation(viewModel)
     LifecycleResumeEffect(viewModel) {
         viewModel.start()
         onPauseOrDispose { viewModel.stop() }
@@ -102,7 +103,7 @@ fun SensorsScreen(
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text(if (enabled) "传感器采集已开启" else "传感器采集已暂停",
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text("${viewModel.feeds.count { it.capability.available }} / ${viewModel.feeds.size} 项能力 · 离页停止",
+                        Text("${viewModel.feeds.count { it.capability.available }} / ${viewModel.feeds.size} 项基础读数 · 离页停止",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(checked = enabled, onCheckedChange = viewModel::setMonitoringEnabled,
@@ -110,6 +111,8 @@ fun SensorsScreen(
                 }
             }
         }
+        item { CompassCard(viewModel.orientationCapability, viewModel.orientationReading, enabled, virtualDevice) }
+        item { LevelCard(viewModel.orientationCapability, viewModel.orientationReading, enabled, virtualDevice) }
         item { speedContent() }
         items(visibleFeeds, key = { if (it.kind.isAcceleration) "acceleration" else it.kind.name }) { feed ->
             // The subscription lives in each card, so an event does not recompose the entire page.

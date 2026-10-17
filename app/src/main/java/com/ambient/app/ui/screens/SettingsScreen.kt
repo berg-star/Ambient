@@ -99,7 +99,7 @@ fun SettingsScreen(
                 DataExplanation("环境记录", "手动保存真实区域快照，保留原获取时间和缓存标记。历史记录仅保存在本机；清除天气凭据不会删除记录，卸载或清除 App 数据会删除记录。")
             }
         }
-        Text("Ambient · 0.7.0\n个人环境探测工具 · 无账号 · 无自建服务器",
+        Text("Ambient · 0.8.0\n个人环境探测工具 · 无账号 · 无自建服务器",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
     }

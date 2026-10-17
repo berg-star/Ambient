@@ -1,8 +1,8 @@
 # Ambient · 环境探测仪
 
-个人使用的原生 Android 环境仪表：**和风区域环境 + 真实设备传感器 + 本机快照筛选与对比 + CSV 导出 + 三套渐变主题**。
+个人使用的原生 Android 环境仪表：**和风区域环境 + 真实设备传感器 + 手机指南针与水平仪 + 本机快照筛选与对比 + CSV 导出 + 三套渐变主题**。
 
-源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **0.7.0**；参阅[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
+源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **0.8.0**；参阅[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
 
 ## 开发环境
 
@@ -12,7 +12,7 @@
 - Compose BOM 2025.12.01、Material 3、Lifecycle 2.10.0、Coroutines。
 - Retrofit 3.0.0、OkHttp 4.12.0；EdDSA 0.3.0 用于 Android 8+ 的 JWT 签名。
 - Room 2.8.5 / SQLite、KSP 2.3.12；历史数据库从 schema v1 开始。
-- 包名 `com.ambient.app`，版本 `0.7.0`（versionCode 9）。
+- 包名 `com.ambient.app`，版本 `0.8.0`（versionCode 10）。
 
 本机复用了 `L:\AI-Accounting\.tools` 中已有的 JDK 和 SDK。旧项目源码和 AVD 不参与 Ambient 构建；Gradle 依赖缓存已复制到 Ambient 自己的 `.gradle-user-home`，运行构建不会使用旧项目缓存作为写入目录。所有机器路径只在被 Git 忽略的本地配置中。
 
@@ -38,9 +38,9 @@ Debug APK 的标准路径为 `app\build\outputs\apk\debug\app-debug.apk`；精�
 
 ```powershell
 .\scripts\start-emulator.ps1
+.\scripts\test-orientation-android-emulator.ps1
+.\scripts\test-orientation-emulator.ps1
 .\scripts\smoke-test-emulator.ps1
-.\scripts\test-themes-emulator.ps1
-.\scripts\test-motion-emulator.ps1
 ```
 
 启动脚本复用已安装的 API 31 系统镜像，创建本项目专用 `Ambient_API_31`，后台运行且不弹窗口。测试脚本只操作核实身份后的 `emulator-5560`，不会向实体手机安装；会设置测试用分辨率/主题、安装 Ambient、输入虚拟光照事件并验证采集生命周期。运动测试会清空专用模拟器中 Ambient 的测试状态，并安装独立的测试定位工具；不会改动实体手机或旧项目。脚本不会自动下载模拟器或镜像。
@@ -63,11 +63,13 @@ Ambient/
 │     │  │  │  ├─ environment/         # 区域服务/来源/独立海拔契约
 │     │  │  │  ├─ history/             # 快照、日期筛选、对比/趋势规则与 CSV 格式
 │     │  │  │  ├─ location/            # 定位速度与精度、过期规则
+│     │  │  │  ├─ orientation/         # 磁北与屏幕倾角模型、坐标数学
 │     │  │  │  └─ sensor/              # 传感器能力与事件模型
 │     │  │  ├─ data/
 │     │  │  │  ├─ environment/         # 演示、独立服务接口、和风适配与加密缓存
 │     │  │  │  ├─ history/             # Room / SQLite 持久化与导出临时文件
 │     │  │  │  ├─ location/            # LocationManager 单次区域定位与卫星测速
+│     │  │  │  ├─ orientation/         # 姿态能力、独立监听、时效与精度
 │     │  │  │  └─ sensor/              # SensorManager 后台采样
 │     │  │  └─ ui/
 │     │  │     ├─ overview/            # 总览 ViewModel / StateFlow
@@ -79,7 +81,7 @@ Ambient/
 │     │  │     └─ theme/               # 深色/浅色/跟随系统
 │     │  └─ res/
 │     ├─ test/                         # 事件处理、生命周期、来源、缓存与保存规则测试
-│     └─ androidTest/                  # 真实 Room / SQLite 与历史 ViewModel 测试
+│     └─ androidTest/                  # Android 姿态坐标转换、Room / SQLite 与状态测试
 ├─ gradle/                             # 版本目录与完整 Wrapper
 ├─ scripts/                            # 本项目构建/模拟器脚本
 └─ docs/                               # 设计边界与验证证据
@@ -97,7 +99,7 @@ Ambient/
 | 本机气压 hPa | 仅气压传感器存在并成功监听时显示 |
 | 三轴合成强度 | 由真实 XYZ 计算的 `√(X²+Y²+Z²)`，单独标注“计算值”；不是第四项直接测量 |
 | 模拟器中的传感器 | Android 模拟器产生的**虚拟传感器事件**，页面显著标识；不属于 Pura 70 Pro 实测 |
-| 朝向、倾斜角 | 本阶段未实现，不将磁场模长、加速度或角速度误当作角度 |
+| 朝向、倾斜角 | 传感器计算：优先系统姿态融合，回退加速度与磁场估计。指南针以磁北为基准，水平仪使用当前屏幕双轴倾角；缺少能力、过期及翻面明确提示，见[说明](docs/orientation.md) |
 | 环境快照与记录页 | 手动保存真实区域 API 数据，缓存保留原时间与标记。支持区域/日期筛选、两份快照并排对比、单区域可选趋势、详情、备注、删除和导出全部 CSV；尚无传感器历史或 CSV 导入恢复 |
 
 安装包不含凭据。首次启动仍是演示；设置中依次导入配置 JSON 与 Ed25519 私钥 PEM，再搜索城市或点击“使用当前位置”。本机凭据、所选区域和单份天气缓存由 Android Keystore 中的 AES 密钥加密，排除备份；私钥只在签名时进入应用内存，未宣称 Ed25519 在硬件内签名。详见[配置步骤](docs/qweather.md)。
@@ -161,7 +163,7 @@ adb -s 你的手机序列号 install -r .\app\build\outputs\apk\debug\app-debug.
 
 ## 下一阶段
 
-先在 Pura 70 Pro 验收区域/日期筛选、跨筛选快照对比、可选趋势及 CSV 保存，并继续观察国内网络、单次定位、去重力精度与室外测速。后续可评估 CSV 导入恢复；手机朝向、倾斜角及海拔仍需各自设计，海拔需独立选源并注明高程基准，不从定位高度直接填充。
+先在 Pura 70 Pro 验收指南针、水平仪、横竖屏和暂停恢复，同时回归历史与 CSV。后续优先评估 CSV 导入恢复；海拔需独立选源并注明高程基准，不从定位高度直接填充。
 
 定位仅使用 Android 自带 LocationManager，没有引入 Google Play Services、账号、AI 模型或自建服务器。首页区域定位会在主动点击后将两位小数坐标发送给和风；探测页测速不上传位置，两者分别控制。历史快照只保留区域名称及指标，不保存经纬度或轨迹。
 

@@ -38,13 +38,13 @@ function Assert-AmbientText {
 }
 function Show-AmbientSensorElement {
     param([string]$Text, [string]$Description, [ValidateSet('Down', 'Up')][string]$Direction = 'Down')
-    for ($AmbientScrollAttempt = 0; $AmbientScrollAttempt -le 5; $AmbientScrollAttempt++) {
+    for ($AmbientScrollAttempt = 0; $AmbientScrollAttempt -le 10; $AmbientScrollAttempt++) {
         $AmbientScrollUi = Get-AmbientUi
         $AmbientVisibleNodes = @($AmbientScrollUi.SelectNodes('//node') | Where-Object {
             if ($Description) { $_.'content-desc' -eq $Description } else { $_.text -like "*$Text*" }
         })
         if ($AmbientVisibleNodes.Count) { return }
-        if ($AmbientScrollAttempt -eq 5) { break }
+        if ($AmbientScrollAttempt -eq 10) { break }
         # This script resets the dedicated emulator to its 720 x 1280 viewport above.
         if ($Direction -eq 'Up') {
             Invoke-AmbientDevice shell input swipe 360 350 360 1000 400 | Out-Null
@@ -62,6 +62,8 @@ function Assert-AmbientListening {
     $ActiveSection = ($SensorDump -split 'Previous Registrations:')[0]
     $Actual = $ActiveSection -match 'com\.ambient\.app\.data\.sensor\.AndroidSensorRepository'
     if ($Actual -ne $Expected) { throw "Sensor registration mismatch: expected=$Expected actual=$Actual" }
+    $OrientationActive = $ActiveSection -match 'com\.ambient\.app\.data\.orientation\.AndroidOrientationPlatform'
+    if ($OrientationActive -ne $Expected) { throw "Orientation registration mismatch: expected=$Expected actual=$OrientationActive" }
 }
 function Save-AmbientScreen {
     param([string]$Name)
@@ -71,6 +73,7 @@ function Save-AmbientScreen {
 function Record-AmbientPass {
     param([string]$Message)
     $AmbientResults.Add("PASS $Message")
+    [IO.File]::WriteAllLines((Join-Path $AmbientRoot '.tools\logs\smoke-test-results.txt'), $AmbientResults, [Text.UTF8Encoding]::new($false))
     Write-Output "PASS $Message"
 }
 

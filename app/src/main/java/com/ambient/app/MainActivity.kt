@@ -50,6 +50,7 @@ import com.ambient.app.ui.screens.SnapshotSaveControl
 import com.ambient.app.data.location.AndroidAreaLocator
 import com.ambient.app.ui.screens.WeatherSettingsCard
 import com.ambient.app.data.sensor.AndroidSensorRepository
+import com.ambient.app.data.orientation.AndroidOrientationRepository
 import com.ambient.app.data.location.AndroidLocationSpeedRepository
 import com.ambient.app.ui.location.SpeedViewModel
 import com.ambient.app.ui.screens.LocationSpeedCard
@@ -144,7 +145,7 @@ private fun AmbientApp(
     })
     HistoryExportDestinationHandler(export)
     val sensors: SensorsViewModel = viewModel(factory = remember {
-        ambientFactory { SensorsViewModel(AndroidSensorRepository(context)) }
+        ambientFactory { SensorsViewModel(AndroidSensorRepository(context), AndroidOrientationRepository(context)) }
     })
     val speed: SpeedViewModel = viewModel(factory = remember {
         ambientFactory { SpeedViewModel(AndroidLocationSpeedRepository(context)) }

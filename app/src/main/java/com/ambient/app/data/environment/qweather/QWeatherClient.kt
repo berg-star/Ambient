@@ -3,6 +3,7 @@ package com.ambient.app.data.environment.qweather
 import com.ambient.app.domain.environment.EnvironmentArea
 import com.ambient.app.domain.environment.EnvironmentException
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.CancellationException
 import okhttp3.OkHttpClient
 import retrofit2.Response
@@ -25,6 +26,15 @@ internal interface QWeatherApi {
     @GET("geo/v2/city/lookup")
     suspend fun cities(@Query("location") query: String, @Query("lang") lang: String = "zh",
                        @Query("number") number: Int = 10): Response<JsonObject>
+    @GET("v7/astronomy/sun")
+    suspend fun sun(@Query("location") location: String, @Query("date") date: String): Response<JsonObject>
+    @GET("v7/astronomy/moon")
+    suspend fun moon(@Query("location") location: String, @Query("date") date: String,
+                     @Query("lang") lang: String = "zh"): Response<JsonObject>
+    @GET("v7/astronomy/solar-elevation-angle")
+    suspend fun solar(@Query("location") location: String, @Query("date") date: String,
+                      @Query("time") time: String, @Query("tz") zone: String,
+                      @Query("alt") referenceAltitude: Int = 0): Response<JsonObject>
 }
 
 class QWeatherClient private constructor(private val api: QWeatherApi) {
@@ -40,6 +50,11 @@ class QWeatherClient private constructor(private val api: QWeatherApi) {
     suspend fun air(area: EnvironmentArea): JsonObject = request {
         api.air(coordinate(area.latitude), coordinate(area.longitude))
     }
+    suspend fun sun(area: EnvironmentArea, date: String): JsonObject = request { api.sun(location(area), date) }
+    suspend fun moon(area: EnvironmentArea, date: String): JsonObject = request { api.moon(location(area), date) }
+    suspend fun solar(area: EnvironmentArea, date: String, time: String, zone: String, altitude: Int = 0): JsonObject =
+        request { api.solar(location(area), date, time, zone, altitude) }
+    private fun location(area: EnvironmentArea) = "${coordinate(area.longitude)},${coordinate(area.latitude)}"
     suspend fun cities(query: String): List<EnvironmentArea> {
         val json = request { api.cities(query) }
         if (json.string("code") == "404") return emptyList()
@@ -51,7 +66,8 @@ class QWeatherClient private constructor(private val api: QWeatherApi) {
             if (lat !in -90.0..90.0 || lon !in -180.0..180.0) return@mapNotNull null
             val label = listOf(city.string("adm1"), city.string("adm2"), city.string("name"))
                 .filter { it.isNotBlank() }.distinct().joinToString(" · ")
-            EnvironmentArea(label.ifBlank { "所选区域" }, lat, lon)
+            EnvironmentArea(label.ifBlank { "所选区域" }, lat, lon,
+                timeZone = city.string("tz").takeIf { runCatching { java.time.ZoneId.of(it) }.isSuccess })
         }
     }
 
@@ -59,8 +75,16 @@ class QWeatherClient private constructor(private val api: QWeatherApi) {
         try {
             val response = block()
             if (!response.isSuccessful) {
-                response.errorBody()?.close()
-                throw EnvironmentException(httpError(response.code()))
+                // Only a documented problem type is used. Never expose the raw error body/details.
+                val problemType = runCatching {
+                    response.errorBody()?.charStream()?.use { reader ->
+                        val buffer = CharArray(4096)
+                        val count = reader.read(buffer)
+                        if (count <= 0) null else JsonParser.parseString(String(buffer, 0, count))
+                            .asJsonObject.obj("error").string("type")
+                    }
+                }.getOrNull()
+                throw EnvironmentException(httpError(response.code(), problemType))
             }
             return response.body() ?: throw EnvironmentException("服务返回空数据，请稍后重试。")
         } catch (e: CancellationException) { throw e }
@@ -71,10 +95,18 @@ class QWeatherClient private constructor(private val api: QWeatherApi) {
 
     companion object {
         fun coordinate(value: Double): String = String.format(Locale.US, "%.2f", value)
-        fun httpError(code: Int): String = when (code) {
+        fun httpError(code: Int, problemType: String? = null): String = when (code) {
             401 -> "和风认证失败（401），请检查凭据、API Host 和手机日期时间。"
             402 -> "服务余额或额度不足（402），请查看和风控制台。"
-            403 -> "接口访问被拒绝（403），请检查项目的 API 授权及应用限制。"
+            403 -> when (problemType) {
+                "https://dev.qweather.com/docs/resource/error-code/#security-restriction" ->
+                    "和风请求限制（403），请检查当前 JWT 凭据的 API 授权及 IP、域名或应用限制。"
+                "https://dev.qweather.com/docs/resource/error-code/#no-credit" -> "和风可用额度不足（403），请检查控制台额度。"
+                "https://dev.qweather.com/docs/resource/error-code/#overdue" -> "和风存在逾期账单（403），请检查控制台账单。"
+                "https://dev.qweather.com/docs/resource/error-code/#invalid-host" -> "和风 API Host 不正确（403），请核对控制台专属 Host。"
+                "https://dev.qweather.com/docs/resource/error-code/#deprecated" -> "当前和风接口已停用（403），需要更新接口版本。"
+                else -> "接口访问被拒绝（403），请检查项目的 API 授权及应用限制。"
+            }
             404 -> "该区域或接口暂无数据（404）。"
             429 -> "请求过于频繁（429），请稍后重试。"
             in 500..599 -> "和风服务暂时不可用（$code），请稍后重试。"

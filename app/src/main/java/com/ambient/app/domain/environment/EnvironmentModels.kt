@@ -48,6 +48,11 @@ data class EnvironmentArea(
     val longitude: Double,
     val fromDevice: Boolean = false,
     val isMock: Boolean = false,
+    /** GeoAPI time zone when known; null never implies the device is in this region. */
+    val timeZone: String? = null,
+    /** Android's approximate WGS84 ellipsoid height at the phone, NOT terrain/MSL elevation. */
+    val positioningHeightMeters: Double? = null,
+    val verticalAccuracyMeters: Double? = null,
 )
 
 data class EnvironmentPreferences(

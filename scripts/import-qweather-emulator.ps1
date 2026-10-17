@@ -11,8 +11,14 @@ try {
     if (-not $keyPath.StartsWith((Join-Path $AmbientRoot 'secrets\'),[StringComparison]::OrdinalIgnoreCase)) { throw 'Test key must be in this project secrets directory.' }
     Invoke-WeatherDevice push $keyPath "$remote/ed25519-private.pem" | Out-Null
     Tap-WeatherText '设置'
-    Show-WeatherText '导入配置与私钥'
-    Tap-WeatherText '导入配置与私钥'
+    $importButton = $null
+    for ($attempt = 0; $attempt -lt 10; $attempt++) {
+        $importButton = @(Get-WeatherTexts) | Where-Object { $_ -in @('导入配置与私钥', '重新导入配置与私钥') } | Select-Object -First 1
+        if ($importButton) { break }
+        Scroll-HistoryUi
+    }
+    if (-not $importButton) { throw 'Credential import button not found.' }
+    Tap-WeatherText $importButton
     Tap-HistoryDescription 'Show roots'
     # The current location can have the same label behind the drawer; use its last (drawer) node.
     $storageNode=(Get-WeatherUi).SelectNodes('//node') | Where-Object { $_.text -eq 'Android SDK built for x86_64' } | Select-Object -Last 1

@@ -66,6 +66,8 @@ import com.ambient.app.ui.theme.AmbientBackdrop
 import com.ambient.app.ui.theme.ThemeMode
 import com.ambient.app.ui.theme.ThemeStyle
 import com.ambient.app.ui.theme.isDark
+import com.ambient.app.ui.sky.SkyViewModel
+import com.ambient.app.ui.screens.SkyScreen
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -133,9 +135,11 @@ private fun AmbientApp(
     onThemeStyleChange: (ThemeStyle) -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
+    val environmentRepository = remember { AndroidEnvironmentRepository(context) }
     val overview: EnvironmentViewModel = viewModel(factory = remember {
-        ambientFactory { EnvironmentViewModel(AndroidEnvironmentRepository(context), AndroidAreaLocator(context)) }
+        ambientFactory { EnvironmentViewModel(environmentRepository, AndroidAreaLocator(context)) }
     })
+    val sky: SkyViewModel = viewModel(factory = remember { ambientFactory { SkyViewModel(environmentRepository) } })
     val historyRepository = remember { RoomHistoryRepository(context) }
     val history: HistoryViewModel = viewModel(factory = remember {
         ambientFactory { HistoryViewModel(historyRepository) }
@@ -152,9 +156,10 @@ private fun AmbientApp(
     })
     var destination by rememberSaveable { mutableStateOf(Destination.OVERVIEW.name) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showSky by rememberSaveable { mutableStateOf(false) }
     val selected = Destination.valueOf(destination)
-    BackHandler(showSettings || selected != Destination.OVERVIEW) {
-        if (showSettings) showSettings = false else destination = Destination.OVERVIEW.name
+    BackHandler(showSettings || showSky || selected != Destination.OVERVIEW) {
+        if (showSettings) showSettings = false else if (showSky) showSky = false else destination = Destination.OVERVIEW.name
     }
     AmbientBackdrop(Modifier.fillMaxSize()) {
     Scaffold(
@@ -166,9 +171,10 @@ private fun AmbientApp(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent,
                 ),
-                title = { Text(if (showSettings) "设置" else "Ambient", style = MaterialTheme.typography.titleLarge) },
+                title = { Text(if (showSettings) "设置" else if (showSky) "日光与天空" else "Ambient", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     if (showSettings) TextButton(onClick = { showSettings = false }) { Text("返回") }
+                    else if (showSky) TextButton(onClick = { showSky = false }) { Text("返回") }
                 },
                 actions = {
                     if (!showSettings) TextButton(onClick = { showSettings = true }) { Text("设置") }
@@ -176,7 +182,7 @@ private fun AmbientApp(
             )
         },
         bottomBar = {
-            if (!showSettings) NavigationBar(
+            if (!showSettings && !showSky) NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 tonalElevation = 0.dp,
             ) {
@@ -202,6 +208,22 @@ private fun AmbientApp(
                 modifier = contentModifier,
                 weatherContent = { WeatherSettingsCard(overview) },
             )
+            else if (showSky) {
+                val skyState by sky.state.collectAsStateWithLifecycle()
+                val weatherState by overview.state.collectAsStateWithLifecycle()
+                LifecycleResumeEffect(sky) {
+                    sky.reset()
+                    sky.load()
+                    onPauseOrDispose { sky.stop() }
+                }
+                val matchingWeather = weatherState.snapshot?.takeIf {
+                    !it.isDemo && it.areaLabel == skyState.result.snapshot?.area?.label
+                }
+                SkyScreen(skyState, { sky.load(force = true) }, {
+                    showSky = false; destination = Destination.SENSORS.name
+                }, contentModifier, uv = matchingWeather?.metrics?.firstOrNull { it.id == "uv" },
+                    uvTime = matchingWeather?.updatedAt, uvCached = weatherState.isCached)
+            }
             else when (selected) {
                 Destination.OVERVIEW -> {
                     val state by overview.state.collectAsStateWithLifecycle()
@@ -210,7 +232,8 @@ private fun AmbientApp(
                     }
                     EnvironmentScreen(state, overview::refresh, { destination = Destination.SENSORS.name }, contentModifier,
                         overview = overview, onSettings = { showSettings = true },
-                        saveContent = { SnapshotSaveControl(history, state) { destination = Destination.HISTORY.name } })
+                        saveContent = { SnapshotSaveControl(history, state) { destination = Destination.HISTORY.name } },
+                        onOpenSky = { showSky = true })
                 }
                 Destination.SENSORS -> {
                     LifecycleResumeEffect(speed) {

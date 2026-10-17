@@ -53,6 +53,54 @@ class WeatherRepositoryTest {
         }
     }
 
+    private fun skySuccess(server: MockWebServer) {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = MockResponse().setBody(when {
+                request.path!!.startsWith("/v7/astronomy/sun?") -> """{"code":"200","sunrise":"2026-10-16T06:00+08:00","sunset":"2026-10-16T18:00+08:00"}"""
+                request.path!!.startsWith("/v7/astronomy/moon?") -> """{"code":"200","moonPhase":[]}"""
+                else -> """{"code":"200","solarElevationAngle":"40","solarAzimuthAngle":"180"}"""
+            })
+        }
+    }
+    @Test fun skyCacheSurvivesRepositoryRecreationAndDoesNotRequestAgain() = runBlocking {
+        MockWebServer().use { server ->
+            skySuccess(server)
+            val store = MemoryStore(); val clock = TestClock()
+            val first = setup(server, store, clock)
+            first.importCredentials(config, testPem()); first.selectArea(city.copy(timeZone = "Asia/Shanghai"))
+            val result = first.loadSky(false)
+            assertNotNull(result.snapshot); assertTrue(store.files.containsKey("sky")); assertEquals(3, server.requestCount)
+            val next = setup(server, store, clock).loadSky(false)
+            assertTrue(next.isCached); assertEquals(result.snapshot, next.snapshot); assertEquals(3, server.requestCount)
+        }
+    }
+    @Test fun disabledOrUnconfiguredSkyNeverRequestsOrReturnsOldCache() = runBlocking {
+        MockWebServer().use { server ->
+            skySuccess(server)
+            val store = MemoryStore(); val repository = setup(server, store, TestClock())
+            assertNull(repository.loadSky(false).snapshot); assertEquals(0, server.requestCount)
+            repository.importCredentials(config, testPem()); repository.selectArea(city)
+            assertNotNull(repository.loadSky(false).snapshot)
+            repository.setEnabled(false)
+            assertNull(repository.loadSky(false).snapshot); assertEquals(3, server.requestCount)
+        }
+    }
+    @Test fun changingAreaAndCredentialsClearsSkyButNotHistory() = runBlocking {
+        MockWebServer().use { server ->
+            skySuccess(server)
+            val store = MemoryStore(); val repository = setup(server, store, TestClock())
+            repository.importCredentials(config, testPem()); repository.selectArea(city)
+            repository.loadSky(false); assertTrue(store.files.containsKey("sky"))
+            repository.selectArea(city.copy(latitude = 31.0))
+            assertFalse(store.files.containsKey("sky"))
+            repository.loadSky(false)
+            repository.importCredentials(config, testPem()); assertFalse(store.files.containsKey("sky"))
+            repository.loadSky(false)
+            repository.clearCredentials(); assertFalse(store.files.containsKey("sky"))
+            assertNull(repository.loadSky(false).snapshot)
+        }
+    }
+
     @Test fun selectedAreaAndCacheSurviveNewRepositoryAndOfflineRefresh() = runBlocking {
         MockWebServer().use { server ->
             success(server)

@@ -18,13 +18,17 @@ import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.Instant
 import java.time.Clock
+import com.ambient.app.domain.sky.SkyRepository
+import com.ambient.app.domain.sky.SkyResult
+import com.ambient.app.domain.sky.SkySnapshot
+import com.ambient.app.data.sky.CachedSkyLoader
 
 /** One selected-area cache, encrypted in noBackupFilesDir; never relabels another city's data. */
 class AndroidEnvironmentRepository internal constructor(
     storeFactory: () -> WeatherStore,
     private val clock: Clock = Clock.systemUTC(),
     private val clientFactory: (QWeatherCredentials) -> QWeatherClient = { QWeatherClient(it) },
-) : ManagedEnvironmentRepository {
+) : ManagedEnvironmentRepository, SkyRepository {
     constructor(context: Context) : this({ SecureWeatherStore(context.applicationContext) })
     private val store by lazy(storeFactory)
     private val lock = Mutex()
@@ -32,6 +36,7 @@ class AndroidEnvironmentRepository internal constructor(
     private var lastAttempt: Instant? = null
     private var credentialCache: QWeatherCredentials? = null
     private var clientCache: QWeatherClient? = null
+    private var skyLoader: CachedSkyLoader? = null
 
     private fun profile(): EnvironmentPreferences = store.read("preferences")?.let {
         gson.fromJson(it, EnvironmentPreferences::class.java)
@@ -63,6 +68,7 @@ class AndroidEnvironmentRepository internal constructor(
             credentialCache = credentials
             clientCache = null
             store.delete("snapshot")
+            store.delete("sky"); skyLoader = null
             lastAttempt = null
             save(previous.copy(configured = true, enabled = true))
         }
@@ -70,6 +76,7 @@ class AndroidEnvironmentRepository internal constructor(
     override suspend fun clearCredentials() = withContext(Dispatchers.IO) {
         lock.withLock {
             store.delete("credentials"); store.delete("snapshot")
+            store.delete("sky"); skyLoader = null
             credentialCache = null; clientCache = null; lastAttempt = null
             save(EnvironmentPreferences())
         }
@@ -93,6 +100,7 @@ class AndroidEnvironmentRepository internal constructor(
                 area.longitude.isFinite() && area.longitude in -180.0..180.0 && area.label.isNotBlank())
             // Clear before changing the area, including cases with identical city labels.
             store.delete("snapshot")
+            store.delete("sky"); skyLoader = null
             save(profile().copy(area = area, enabled = true))
             lastAttempt = null
         }
@@ -119,6 +127,28 @@ class AndroidEnvironmentRepository internal constructor(
             } catch (e: CancellationException) { throw e }
             catch (e: EnvironmentException) { EnvironmentResult(old, e.userMessage, isCached = old != null) }
             catch (_: Exception) { EnvironmentResult(old, "本地配置或缓存读取失败，请在设置中重新导入凭据。", isCached = old != null) }
+        }
+    }
+
+    /** Shares the configuration lock: changing area/credentials cannot race a stale cache write. */
+    override suspend fun loadSky(force: Boolean): SkyResult = withContext(Dispatchers.IO) {
+        lock.withLock {
+            try {
+                val p = profile()
+                if (!p.configured || !p.enabled || p.area == null)
+                    return@withLock SkyResult(null, listOf("请先启用区域 API 并选择城市或使用当前位置。"))
+                val old = runCatching { store.read("sky")?.let { gson.fromJson(it, SkySnapshot::class.java) } }.getOrNull()
+                val loader = skyLoader ?: CachedSkyLoader(QWeatherAstronomyService(client(), clock), clock)
+                    .also { skyLoader = it }
+                val result = loader.load(p.area, old, force)
+                if (result.snapshot != null) {
+                    try { store.write("sky", gson.toJson(result.snapshot)) }
+                    catch (_: Exception) { return@withLock result.copy(messages = result.messages + "天文缓存写入失败，关闭后可能无法离线查看。") }
+                }
+                result
+            } catch (e: CancellationException) { throw e }
+            catch (e: EnvironmentException) { SkyResult(null, listOf(e.userMessage)) }
+            catch (_: Exception) { SkyResult(null, listOf("天文配置读取失败，请检查设置后重试。")) }
         }
     }
 }

@@ -66,6 +66,7 @@ fun EnvironmentScreen(
     overview: EnvironmentViewModel? = null,
     onSettings: () -> Unit = {},
     saveContent: @Composable () -> Unit = {},
+    onOpenSky: () -> Unit = {},
 ) {
     val snapshot = state.snapshot
     val temperature = snapshot?.metrics?.firstOrNull { it.id == "temperature" }
@@ -104,6 +105,19 @@ fun EnvironmentScreen(
             }
         }
         item { EnvironmentModeSwitch(onOpenSensors) }
+        item {
+            AmbientPanel(Modifier.fillMaxWidth().clickable(onClick = onOpenSky)) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(Modifier.weight(1f)) {
+                        Text("日光与天空", style = MaterialTheme.typography.titleSmall)
+                        Text("日出日落 · 太阳位置 · 月相", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("天文计算  ›", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
         if (overview != null) item { WeatherAreaControls(overview, onSettings) }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp),

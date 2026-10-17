@@ -1,8 +1,8 @@
 # Ambient · 环境探测仪
 
-个人使用的原生 Android 环境仪表：**和风区域环境 + 真实设备传感器 + 手机指南针与水平仪 + 本机快照筛选与对比 + CSV 导出 + 三套渐变主题**。
+个人使用的原生 Android 环境仪表：**和风区域环境 + 日光与天空 + 真实设备传感器 + 手机指南针与水平仪 + 本机快照筛选与对比 + CSV 导出 + 三套渐变主题**。
 
-源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **0.8.0**；参阅[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
+源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **0.9.0**；参阅[日光与天空](docs/sky.md)、[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
 
 ## 开发环境
 
@@ -12,7 +12,7 @@
 - Compose BOM 2025.12.01、Material 3、Lifecycle 2.10.0、Coroutines。
 - Retrofit 3.0.0、OkHttp 4.12.0；EdDSA 0.3.0 用于 Android 8+ 的 JWT 签名。
 - Room 2.8.5 / SQLite、KSP 2.3.12；历史数据库从 schema v1 开始。
-- 包名 `com.ambient.app`，版本 `0.8.0`（versionCode 10）。
+- 包名 `com.ambient.app`，版本 `0.9.0`（versionCode 11）。
 
 本机复用了 `L:\AI-Accounting\.tools` 中已有的 JDK 和 SDK。旧项目源码和 AVD 不参与 Ambient 构建；Gradle 依赖缓存已复制到 Ambient 自己的 `.gradle-user-home`，运行构建不会使用旧项目缓存作为写入目录。所有机器路径只在被 Git 忽略的本地配置中。
 
@@ -41,6 +41,8 @@ Debug APK 的标准路径为 `app\build\outputs\apk\debug\app-debug.apk`；精�
 .\scripts\test-orientation-android-emulator.ps1
 .\scripts\test-orientation-emulator.ps1
 .\scripts\smoke-test-emulator.ps1
+# 日光与天空离线界面验证（需已构建并安装 androidTest APK）：
+.\scripts\test-sky-emulator.ps1
 ```
 
 启动脚本复用已安装的 API 31 系统镜像，创建本项目专用 `Ambient_API_31`，后台运行且不弹窗口。测试脚本只操作核实身份后的 `emulator-5560`，不会向实体手机安装；会设置测试用分辨率/主题、安装 Ambient、输入虚拟光照事件并验证采集生命周期。运动测试会清空专用模拟器中 Ambient 的测试状态，并安装独立的测试定位工具；不会改动实体手机或旧项目。脚本不会自动下载模拟器或镜像。
@@ -93,6 +95,7 @@ Ambient/
 | --- | --- |
 | 室外温度、湿度、海平面气压、AQI、PM2.5、PM10、风速风向、紫外线 | 启用和风并选择区域后为 **区域 API**；中国 AQI 只取 `cn-mee`，缺失留空。关闭真实数据开关时为明确标注的固定演示 |
 | 地形海拔 | **尚无数据**，显示 `—`；未用 GNSS 高度或气压推算 |
+| 日光与天空 | 日出日落、月相和太阳角度为**和风天文计算**；倒计时及白昼进度为本机时间计算，均非手机实测。太阳角度可用单次定位的 WGS84 高度作近似参考，无有效高度则明确使用 0 米参考；不冒充地形海拔 |
 | 光照 lx、地磁场 XYZ μT、加速度 XYZ m/s²、陀螺仪 XYZ rad/s | 真机由 Android `SensorManager` 返回的事件；不支持时显示不支持 |
 | 去重力加速度 XYZ m/s² | Android 系统提供的线性加速度，标为系统计算；默认显示，可切回含重力读数；不支持时不自行估算 |
 | 定位速度 km/h、m/s | 系统 GPS 提供方的速度估计；需主动开启与精确定位授权，不使用加速度积分或两点距离推算；有精度则展示，无有效速度或过期则显示 `—` |
@@ -127,6 +130,8 @@ Ambient/
 在“设置 → 主题风格”切换时会应用对应的推荐明暗，随后仍可单独选深色、浅色或跟随系统；三套主题都有完整深浅配色。旧版只保存过明暗选择时，保留该选择并使用流光玻璃主题。渐变由静态画笔绘制，卡片采用不透明渐变保证读数可读，没有模糊层或持续动画。
 
 首页显示当前数据模式和每项来源标签；点击温度或指标可查看物理说明。底部导航、返回手势、系统栏安全区域和可滚动布局适配普通手机；华为 Pura 70 Pro 的最终读数、校准与手势体验需要真机验收。
+
+总览的“日光与天空”入口沿用所选区域，主动打开才请求天文接口。日出日落与月相按地点、日期缓存，太阳角度 10 分钟内复用；手动刷新间隔至少 30 秒，不后台轮询。新搜索城市使用地区时区，旧城市或定位缺少时区时明确标注设备时区。缺失值保留为空，跨日期停止旧倒计时；太阳角度显示计算对应时间，定位高度与 0 米参考参数分别标注。页面沿用区域紫外线，手机光照仍在探测页；详见[数据边界与测试](docs/sky.md)。
 
 页面导航暂用 Compose 保存状态和 Android 返回处理，适合当前三个并列页面与一个设置页。ViewModel 与服务通过轻量工厂装配，没有引入复杂路由或依赖注入框架。
 
@@ -163,8 +168,8 @@ adb -s 你的手机序列号 install -r .\app\build\outputs\apk\debug\app-debug.
 
 ## 下一阶段
 
-先在 Pura 70 Pro 验收指南针、水平仪、横竖屏和暂停恢复，同时回归历史与 CSV。后续优先评估 CSV 导入恢复；海拔需独立选源并注明高程基准，不从定位高度直接填充。
+先在 Pura 70 Pro 验收日光与天空、单次定位高度、指南针、水平仪和暂停恢复，同时回归历史与 CSV。备份与恢复暂缓；后续可评估两小时降雨或逐小时环境预报。地形海拔需独立选源并注明高程基准，不从手机定位高度直接填充。
 
-定位仅使用 Android 自带 LocationManager，没有引入 Google Play Services、账号、AI 模型或自建服务器。首页区域定位会在主动点击后将两位小数坐标发送给和风；探测页测速不上传位置，两者分别控制。历史快照只保留区域名称及指标，不保存经纬度或轨迹。
+定位仅使用 Android 自带 LocationManager，没有引入 Google Play Services、账号、AI 模型或自建服务器。首页区域定位会在主动点击后将两位小数坐标发送给和风；打开日光与天空时，有效定位高度可作为太阳角度的近似参考参数发送。探测页测速不上传位置，分别控制。历史快照只保留区域名称及指标，不保存经纬度、高度或轨迹。
 
 参考：[AGP 8.13 兼容矩阵](https://developer.android.com/build/releases/agp-8-13-0-release-notes)、[Android 传感器概览](https://developer.android.com/develop/sensors-and-location/sensors/sensors_overview)、[和风天气官方开发者文档](https://dev.qweather.com/)。

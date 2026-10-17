@@ -22,13 +22,15 @@ import com.ambient.app.domain.sky.SkyRepository
 import com.ambient.app.domain.sky.SkyResult
 import com.ambient.app.domain.sky.SkySnapshot
 import com.ambient.app.data.sky.CachedSkyLoader
+import com.ambient.app.data.precipitation.CachedPrecipitationLoader
+import com.ambient.app.domain.precipitation.*
 
 /** One selected-area cache, encrypted in noBackupFilesDir; never relabels another city's data. */
 class AndroidEnvironmentRepository internal constructor(
     storeFactory: () -> WeatherStore,
     private val clock: Clock = Clock.systemUTC(),
     private val clientFactory: (QWeatherCredentials) -> QWeatherClient = { QWeatherClient(it) },
-) : ManagedEnvironmentRepository, SkyRepository {
+) : ManagedEnvironmentRepository, SkyRepository, PrecipitationRepository {
     constructor(context: Context) : this({ SecureWeatherStore(context.applicationContext) })
     private val store by lazy(storeFactory)
     private val lock = Mutex()
@@ -37,6 +39,7 @@ class AndroidEnvironmentRepository internal constructor(
     private var credentialCache: QWeatherCredentials? = null
     private var clientCache: QWeatherClient? = null
     private var skyLoader: CachedSkyLoader? = null
+    private var precipitationLoader: CachedPrecipitationLoader? = null
 
     private fun profile(): EnvironmentPreferences = store.read("preferences")?.let {
         gson.fromJson(it, EnvironmentPreferences::class.java)
@@ -69,6 +72,7 @@ class AndroidEnvironmentRepository internal constructor(
             clientCache = null
             store.delete("snapshot")
             store.delete("sky"); skyLoader = null
+            store.delete("precipitation"); precipitationLoader = null
             lastAttempt = null
             save(previous.copy(configured = true, enabled = true))
         }
@@ -77,6 +81,7 @@ class AndroidEnvironmentRepository internal constructor(
         lock.withLock {
             store.delete("credentials"); store.delete("snapshot")
             store.delete("sky"); skyLoader = null
+            store.delete("precipitation"); precipitationLoader = null
             credentialCache = null; clientCache = null; lastAttempt = null
             save(EnvironmentPreferences())
         }
@@ -101,6 +106,7 @@ class AndroidEnvironmentRepository internal constructor(
             // Clear before changing the area, including cases with identical city labels.
             store.delete("snapshot")
             store.delete("sky"); skyLoader = null
+            store.delete("precipitation"); precipitationLoader = null
             save(profile().copy(area = area, enabled = true))
             lastAttempt = null
         }
@@ -127,6 +133,26 @@ class AndroidEnvironmentRepository internal constructor(
             } catch (e: CancellationException) { throw e }
             catch (e: EnvironmentException) { EnvironmentResult(old, e.userMessage, isCached = old != null) }
             catch (_: Exception) { EnvironmentResult(old, "本地配置或缓存读取失败，请在设置中重新导入凭据。", isCached = old != null) }
+        }
+    }
+
+    override suspend fun loadPrecipitation(force: Boolean): PrecipitationResult = withContext(Dispatchers.IO) {
+        lock.withLock {
+            try {
+                val p = profile()
+                if (!p.configured || !p.enabled || p.area == null)
+                    return@withLock PrecipitationResult(null, listOf("请先启用区域 API 并选择城市或使用当前位置。"))
+                val old = runCatching { store.read("precipitation")?.let {
+                    gson.fromJson(it, PrecipitationSnapshot::class.java) } }.getOrNull()
+                val loader = precipitationLoader ?: CachedPrecipitationLoader(QWeatherPrecipitationService(client(), clock), clock)
+                    .also { precipitationLoader = it }
+                val result = loader.load(p.area, old, force)
+                if (result.snapshot != null) try { store.write("precipitation", gson.toJson(result.snapshot)) }
+                catch (_: Exception) { return@withLock result.copy(messages = result.messages + "降水缓存写入失败，关闭后可能无法离线查看。") }
+                result
+            } catch (e: CancellationException) { throw e }
+            catch (e: EnvironmentException) { PrecipitationResult(null, listOf(e.userMessage)) }
+            catch (_: Exception) { PrecipitationResult(null, listOf("降水配置或缓存读取失败，请检查设置后重试。")) }
         }
     }
 

@@ -1,8 +1,8 @@
 # Ambient · 环境探测仪
 
-个人使用的原生 Android 环境仪表：**和风区域环境 + 日光与天空 + 真实设备传感器 + 手机指南针与水平仪 + 本机快照筛选与对比 + CSV 导出 + 三套渐变主题**。
+个人使用的原生 Android 环境仪表：**和风区域环境 + 两小时降水及 24 / 72 小时趋势 + 日光与天空 + 真实设备传感器 + 手机指南针与水平仪 + 本机快照筛选与对比 + CSV 导出 + 三套渐变主题**。
 
-源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **0.9.1**；参阅[总览定位高度](docs/overview-height.md)、[日光与天空](docs/sky.md)、[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
+源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **0.10.0**；参阅[降水预报](docs/precipitation.md)、[总览定位高度](docs/overview-height.md)、[日光与天空](docs/sky.md)、[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
 
 ## 开发环境
 
@@ -12,7 +12,7 @@
 - Compose BOM 2025.12.01、Material 3、Lifecycle 2.10.0、Coroutines。
 - Retrofit 3.0.0、OkHttp 4.12.0；EdDSA 0.3.0 用于 Android 8+ 的 JWT 签名。
 - Room 2.8.5 / SQLite、KSP 2.3.12；历史数据库从 schema v1 开始。
-- 包名 `com.ambient.app`，版本 `0.9.1`（versionCode 12）。
+- 包名 `com.ambient.app`，版本 `0.10.0`（versionCode 13）。
 
 本机复用了 `L:\AI-Accounting\.tools` 中已有的 JDK 和 SDK。旧项目源码和 AVD 不参与 Ambient 构建；Gradle 依赖缓存已复制到 Ambient 自己的 `.gradle-user-home`，运行构建不会使用旧项目缓存作为写入目录。所有机器路径只在被 Git 忽略的本地配置中。
 
@@ -43,6 +43,8 @@ Debug APK 的标准路径为 `app\build\outputs\apk\debug\app-debug.apk`；精�
 .\scripts\smoke-test-emulator.ps1
 # 日光与天空离线界面验证（需已构建并安装 androidTest APK）：
 .\scripts\test-sky-emulator.ps1
+# 降水预报离线界面验证（同样需已构建并安装 androidTest APK）：
+.\scripts\test-precipitation-emulator.ps1
 ```
 
 启动脚本复用已安装的 API 31 系统镜像，创建本项目专用 `Ambient_API_31`，后台运行且不弹窗口。测试脚本只操作核实身份后的 `emulator-5560`，不会向实体手机安装；会设置测试用分辨率/主题、安装 Ambient、输入虚拟光照事件并验证采集生命周期。运动测试会清空专用模拟器中 Ambient 的测试状态，并安装独立的测试定位工具；不会改动实体手机或旧项目。脚本不会自动下载模拟器或镜像。

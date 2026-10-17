@@ -62,6 +62,48 @@ class WeatherRepositoryTest {
             })
         }
     }
+    private fun precipitationSuccess(server: MockWebServer) {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest) = MockResponse().setBody(
+                if (request.path!!.startsWith("/v7/minutely"))
+                    """{"code":"200","updateTime":"2026-10-16T08:00Z","minutely":[{"fxTime":"2026-10-16T08:00Z","precip":"0","type":"rain"}]}"""
+                else """{"hours":[{"forecastTime":"2026-10-16T08:00Z","precipitation":{"amount":{"value":0,"unit":"mm"},"probability":0}}]}""")
+        }
+    }
+    @Test fun precipitationCacheSurvivesRecreationWithoutExtraRequests() = runBlocking {
+        MockWebServer().use { server ->
+            precipitationSuccess(server)
+            val store = MemoryStore(); val clock = TestClock(); val repository = setup(server, store, clock)
+            repository.importCredentials(config, testPem()); repository.selectArea(city)
+            val first = repository.loadPrecipitation(false)
+            val next = setup(server,store,clock).loadPrecipitation(false)
+            assertEquals(first.snapshot,next.snapshot); assertTrue(next.isCached); assertEquals(2,server.requestCount)
+        }
+    }
+    @Test fun precipitationDisabledOrUnconfiguredNeverUsesNetworkOrOldData() = runBlocking {
+        MockWebServer().use { server ->
+            precipitationSuccess(server)
+            val repository = setup(server,MemoryStore(),TestClock())
+            assertNull(repository.loadPrecipitation(false).snapshot); assertEquals(0,server.requestCount)
+            repository.importCredentials(config,testPem()); repository.selectArea(city)
+            repository.loadPrecipitation(false); repository.setEnabled(false)
+            assertNull(repository.loadPrecipitation(false).snapshot); assertEquals(2,server.requestCount)
+        }
+    }
+    @Test fun precipitationCacheClearsOnCoordinateAndCredentialChanges() = runBlocking {
+        MockWebServer().use { server ->
+            precipitationSuccess(server)
+            val store=MemoryStore(); val repository=setup(server,store,TestClock())
+            repository.importCredentials(config,testPem()); repository.selectArea(city)
+            repository.loadPrecipitation(false); assertTrue(store.files.containsKey("precipitation"))
+            repository.selectArea(city.copy(latitude=31.0)); assertFalse(store.files.containsKey("precipitation"))
+            repository.loadPrecipitation(false); repository.importCredentials(config,testPem())
+            assertFalse(store.files.containsKey("precipitation"))
+            repository.loadPrecipitation(false); repository.clearCredentials()
+            assertFalse(store.files.containsKey("precipitation")); assertNull(repository.loadPrecipitation(false).snapshot)
+        }
+    }
+
     @Test fun skyCacheSurvivesRepositoryRecreationAndDoesNotRequestAgain() = runBlocking {
         MockWebServer().use { server ->
             skySuccess(server)

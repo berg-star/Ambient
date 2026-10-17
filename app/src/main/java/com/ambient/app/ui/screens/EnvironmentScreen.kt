@@ -67,6 +67,7 @@ fun EnvironmentScreen(
     onSettings: () -> Unit = {},
     saveContent: @Composable () -> Unit = {},
     onOpenSky: () -> Unit = {},
+    onOpenPrecipitation: () -> Unit = {},
 ) {
     val snapshot = state.displaySnapshot
     val temperature = snapshot?.metrics?.firstOrNull { it.id == "temperature" }
@@ -105,6 +106,19 @@ fun EnvironmentScreen(
             }
         }
         item { EnvironmentModeSwitch(onOpenSensors) }
+        item {
+            AmbientPanel(Modifier.fillMaxWidth().clickable(onClick = onOpenPrecipitation)) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(Modifier.weight(1f)) {
+                        Text("降水预报", style = MaterialTheme.typography.titleSmall)
+                        Text("两小时精细降水 · 24 / 72 小时趋势", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("区域预报  ›", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
         item {
             AmbientPanel(Modifier.fillMaxWidth().clickable(onClick = onOpenSky)) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),

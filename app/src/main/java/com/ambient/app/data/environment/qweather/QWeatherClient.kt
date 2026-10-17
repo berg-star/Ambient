@@ -17,6 +17,11 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 internal interface QWeatherApi {
+    @GET("v7/minutely/5m")
+    suspend fun minutely(@Query("location") location: String, @Query("lang") lang: String = "zh"): Response<JsonObject>
+    @GET("weather/v1/hourly/{latitude}/{longitude}")
+    suspend fun hourly(@Path("latitude") latitude: String, @Path("longitude") longitude: String,
+                       @Query("hours") hours: Int = 72, @Query("lang") lang: String = "zh"): Response<JsonObject>
     @GET("weather/v1/current/{latitude}/{longitude}")
     suspend fun weather(@Path("latitude") latitude: String, @Path("longitude") longitude: String,
                         @Query("lang") lang: String = "zh"): Response<JsonObject>
@@ -43,6 +48,11 @@ class QWeatherClient private constructor(private val api: QWeatherApi) {
     internal constructor(baseUrl: String, client: OkHttpClient) : this(Retrofit.Builder()
         .baseUrl(baseUrl).client(client).addConverterFactory(GsonConverterFactory.create())
         .build().create(QWeatherApi::class.java))
+
+    suspend fun minutely(area: EnvironmentArea): JsonObject = request { api.minutely(location(area)) }
+    suspend fun hourly(area: EnvironmentArea): JsonObject = request {
+        api.hourly(coordinate(area.latitude), coordinate(area.longitude))
+    }
 
     suspend fun weather(area: EnvironmentArea): JsonObject = request {
         api.weather(coordinate(area.latitude), coordinate(area.longitude))

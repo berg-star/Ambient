@@ -32,7 +32,7 @@ class SkyUiFixture {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val directory = File(context.noBackupFilesDir, "weather")
         val backup = File(context.noBackupFilesDir, "sky-ui-test-backup")
-        val keys = listOf("credentials", "preferences", "snapshot", "sky")
+        val keys = listOf("credentials", "preferences", "snapshot", "sky", "precipitation")
         if (mode == "restore") {
             if (backup.exists()) {
                 keys.forEach { key ->

@@ -8,6 +8,8 @@ import com.ambient.app.domain.environment.EnvironmentArea
 import com.ambient.app.domain.environment.EnvironmentException
 import com.ambient.app.domain.environment.EnvironmentPreferences
 import com.ambient.app.domain.environment.ManagedEnvironmentRepository
+import com.ambient.app.domain.environment.withPositioningHeight
+import com.ambient.app.domain.environment.positioningHeightMetric
 import com.ambient.app.data.location.AndroidAreaLocator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +30,11 @@ data class EnvironmentUiState(
     val searchResults: List<EnvironmentArea> = emptyList(),
     val serviceMessage: String? = null,
     val isLocating: Boolean = false,
-)
+) {
+    val displaySnapshot: EnvironmentSnapshot?
+        get() = snapshot?.let { if (preferences.enabled) it.withPositioningHeight(preferences.area) else it }
+    val heightWithoutWeather get() = positioningHeightMetric(preferences.area.takeIf { preferences.enabled })
+}
 
 class EnvironmentViewModel(
     private val repository: EnvironmentRepository,

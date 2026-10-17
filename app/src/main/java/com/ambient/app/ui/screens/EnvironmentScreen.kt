@@ -68,12 +68,12 @@ fun EnvironmentScreen(
     saveContent: @Composable () -> Unit = {},
     onOpenSky: () -> Unit = {},
 ) {
-    val snapshot = state.snapshot
+    val snapshot = state.displaySnapshot
     val temperature = snapshot?.metrics?.firstOrNull { it.id == "temperature" }
     // The four useful overview tiles stay together; the rest remain available below.
     val priority = listOf("humidity", "pressure", "aqi", "altitude")
-    val otherMetrics = snapshot?.metrics?.filterNot { it.id == "temperature" }
-        ?.sortedBy { priority.indexOf(it.id).let { index -> if (index >= 0) index else priority.size } }.orEmpty()
+    val otherMetrics = (snapshot?.metrics ?: listOf(state.heightWithoutWeather)).filterNot { it.id == "temperature" }
+        .sortedBy { priority.indexOf(it.id).let { index -> if (index >= 0) index else priority.size } }
     val visuals = LocalAmbientVisuals.current
     var selectedMetric by remember { mutableStateOf<EnvironmentMetric?>(null) }
     val demo = snapshot?.isDemo ?: !state.preferences.enabled
@@ -201,7 +201,7 @@ fun EnvironmentScreen(
         } }
         if (snapshot != null && !snapshot.isDemo) item {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("数据来源：和风天气 QWeather", style = MaterialTheme.typography.labelSmall,
+                Text("天气数据来源：和风天气 QWeather", style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 snapshot.attributions.forEach { attribution ->
                     Text(attribution, style = MaterialTheme.typography.labelSmall,
@@ -229,7 +229,8 @@ fun EnvironmentScreen(
                             Modifier.size(112.dp).align(Alignment.CenterHorizontally))
                     }
                     Text(metric.description)
-                    Text(if (metric.id == "altitude") "海拔需要独立的数据源，手机定位高度不等同于准确的地形海拔。"
+                    Text(if (metric.source == DataSource.POSITIONING) "来源是系统定位估计，不是和风天气数据，也不等于准确的地形海拔。"
+                        else if (metric.id == "altitude") "海拔需要独立的数据源，手机定位高度不等同于准确的地形海拔。"
                         else if (metric.source == DataSource.DEMO) "当前指标是固定演示内容，不代表你所在位置的环境。"
                         else "网络 API 数据代表所选区域的环境，不是手机传感器实测。暂无数据时显示横线，不使用演示值补齐。",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

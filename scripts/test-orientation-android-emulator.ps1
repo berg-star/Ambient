@@ -6,8 +6,8 @@ Invoke-WeatherDevice install -r (Join-Path $AmbientRoot 'app\build\outputs\apk\a
 $orientationOutput=Invoke-WeatherDevice shell am instrument -w -r -e notClass com.ambient.app.ui.sky.SkyUiFixture com.ambient.app.test/androidx.test.runner.AndroidJUnitRunner
 $orientationJoined=$orientationOutput -join "`n"
 [IO.File]::WriteAllLines((Join-Path $AmbientRoot '.tools\logs\orientation-android-results.txt'),$orientationOutput,[Text.UTF8Encoding]::new($false))
-if ($orientationJoined -notmatch 'OK \(55 tests\)' -or $orientationJoined -match 'FAILURES!!!|INSTRUMENTATION_FAILED|Process crashed') {
+if ($orientationJoined -notmatch 'OK \(56 tests\)' -or $orientationJoined -match 'FAILURES!!!|INSTRUMENTATION_FAILED|Process crashed') {
     $orientationOutput | Write-Output
     throw 'Orientation/Android regression did not pass.'
 }
-'PASS all 55 Android location, matrix, history, CSV and state tests'
+'PASS all 56 Android location, matrix, history, CSV and state tests'

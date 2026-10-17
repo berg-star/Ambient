@@ -7,6 +7,10 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.ambient.app.domain.environment.DataSource
 import com.ambient.app.domain.environment.EnvironmentMetric
 import com.ambient.app.domain.environment.EnvironmentSnapshot
+import com.ambient.app.domain.environment.EnvironmentArea
+import com.ambient.app.domain.environment.withPositioningHeight
+import com.ambient.app.domain.history.HistoryCsvWriter
+import java.io.StringWriter
 import com.ambient.app.domain.history.HistoryException
 import com.ambient.app.domain.history.HistoryRepository
 import com.ambient.app.domain.history.SnapshotDraft
@@ -59,6 +63,26 @@ class HistoryDatabaseTest {
         diskName?.let { context.deleteDatabase(it) } // Only this test's random file, never ambient-history.db.
     }
     private fun draft(id: String = UUID.randomUUID().toString(), cached: Boolean = true) = SnapshotDraft(id, snapshot, cached)
+
+    @Test fun positioningHeightKeepsItsOwnSourceAndFixTimeThroughRoomAndCsv() = runBlocking {
+        val fixTime = fetchedAt.minusSeconds(120)
+        val area = EnvironmentArea(snapshot.areaLabel, 30.0, 120.0, fromDevice = true, isMock = true,
+            positioningHeightMeters = 123.4, verticalAccuracyMeters = 15.0, positioningHeightAtMillis = fixTime.toEpochMilli())
+        val expected = snapshot.withPositioningHeight(area)
+        val input = SnapshotDraft(UUID.randomUUID().toString(), expected, true)
+        repository.save(input, "synthetic positioning height")
+        val record = repository.observeRecord(input.id).first()!!
+        assertEquals(expected, record.snapshot)
+        val height = record.snapshot.metrics.first { it.id == "altitude" }
+        assertEquals(DataSource.POSITIONING, height.source)
+        assertTrue(height.isSimulated)
+        assertTrue(height.description.contains(Instant.ofEpochMilli(fixTime.toEpochMilli()).toString()))
+        assertEquals(fetchedAt, record.snapshot.updatedAt)
+        val csv = StringWriter()
+        repository.visitRecordsForExport { HistoryCsvWriter.writeRecord(csv, it) }
+        assertTrue(csv.toString().contains("POSITIONING"))
+        assertTrue(csv.toString().contains("模拟定位"))
+    }
 
     @Test fun cachedSnapshotKeepsBothTimesSourcesMissingValuesAngleAndAttribution() = runBlocking {
         val input = draft()

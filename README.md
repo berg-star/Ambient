@@ -2,7 +2,7 @@
 
 个人使用的原生 Android 环境仪表：**和风区域环境 + 日光与天空 + 真实设备传感器 + 手机指南针与水平仪 + 本机快照筛选与对比 + CSV 导出 + 三套渐变主题**。
 
-源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **0.9.0**；参阅[日光与天空](docs/sky.md)、[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
+源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **0.9.1**；参阅[总览定位高度](docs/overview-height.md)、[日光与天空](docs/sky.md)、[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
 
 ## 开发环境
 
@@ -12,7 +12,7 @@
 - Compose BOM 2025.12.01、Material 3、Lifecycle 2.10.0、Coroutines。
 - Retrofit 3.0.0、OkHttp 4.12.0；EdDSA 0.3.0 用于 Android 8+ 的 JWT 签名。
 - Room 2.8.5 / SQLite、KSP 2.3.12；历史数据库从 schema v1 开始。
-- 包名 `com.ambient.app`，版本 `0.9.0`（versionCode 11）。
+- 包名 `com.ambient.app`，版本 `0.9.1`（versionCode 12）。
 
 本机复用了 `L:\AI-Accounting\.tools` 中已有的 JDK 和 SDK。旧项目源码和 AVD 不参与 Ambient 构建；Gradle 依赖缓存已复制到 Ambient 自己的 `.gradle-user-home`，运行构建不会使用旧项目缓存作为写入目录。所有机器路径只在被 Git 忽略的本地配置中。
 
@@ -94,7 +94,7 @@ Ambient/
 | 内容 | 来源与边界 |
 | --- | --- |
 | 室外温度、湿度、海平面气压、AQI、PM2.5、PM10、风速风向、紫外线 | 启用和风并选择区域后为 **区域 API**；中国 AQI 只取 `cn-mee`，缺失留空。关闭真实数据开关时为明确标注的固定演示 |
-| 地形海拔 | **尚无数据**，显示 `—`；未用 GNSS 高度或气压推算 |
+| 近似定位高度 | 总览原海拔卡显示上次单次定位报告的 WGS84 高度，标为定位估计；点击查看垂直精度与独立定位时间。缺失或手选城市显示 `—`，不当作准确地形海拔 |
 | 日光与天空 | 日出日落、月相和太阳角度为**和风天文计算**；倒计时及白昼进度为本机时间计算，均非手机实测。太阳角度可用单次定位的 WGS84 高度作近似参考，无有效高度则明确使用 0 米参考；不冒充地形海拔 |
 | 光照 lx、地磁场 XYZ μT、加速度 XYZ m/s²、陀螺仪 XYZ rad/s | 真机由 Android `SensorManager` 返回的事件；不支持时显示不支持 |
 | 去重力加速度 XYZ m/s² | Android 系统提供的线性加速度，标为系统计算；默认显示，可切回含重力读数；不支持时不自行估算 |
@@ -147,7 +147,7 @@ Ambient/
 
 导出在 IO 调度器中，用 Room 事务按每批 64 条读取并写成私有缓存临时文件，固定本次导出的数据后再打开系统保存窗口；不用一次把全部快照装进界面内存。目标文件写入、刷新及关闭全部完成后才报告成功。取消或失败不修改源记录，取消与正常结束会清理临时文件；写入失败可能留下不完整的目标 CSV，页面提示检查。导出未改变数据库 schema，也不新增存储权限。
 
-加速度卡默认显示系统计算的去重力读数，静置时应接近零但允许噪声和偏差；“含重力”模式保留原始加速度，静置时合成值约 9.8 m/s²。采集中切换模式会清空该卡旧读数和曲线；不会直接从模长减去常数或强行归零。角速度不是角度；照度不是紫外线；本机气压不是海平面气压。数据模型预留 `DEMO / DEVICE / REGIONAL_API / ESTIMATED` 四类来源。
+加速度卡默认显示系统计算的去重力读数，静置时应接近零但允许噪声和偏差；“含重力”模式保留原始加速度，静置时合成值约 9.8 m/s²。采集中切换模式会清空该卡旧读数和曲线；不会直接从模长减去常数或强行归零。角速度不是角度；照度不是紫外线；本机气压不是海平面气压。数据来源包括 `DEMO / DEVICE / REGIONAL_API / ESTIMATED / POSITIONING`，定位估计与传感器实测、区域 API 分别标注。
 
 定位速度独立于传感器采集开关，默认关闭。仅在探测页且 Activity 恢复时监听 GPS，离开、后台或关闭开关即停止；在探测页内滚动不会中断测速。不请求后台定位，不存储经纬度或轨迹，不上传位置。缺少速度字段不会当作 0；超过 10 秒未更新会隐藏速度。精度为系统报告的 68% 置信范围，缺失时明确提示。模拟器及系统标记的模拟位置明确显示为测试数据。室内、低速及静止时可能无读数或漂移，不用于精确速度或距离测量。
 
@@ -170,6 +170,6 @@ adb -s 你的手机序列号 install -r .\app\build\outputs\apk\debug\app-debug.
 
 先在 Pura 70 Pro 验收日光与天空、单次定位高度、指南针、水平仪和暂停恢复，同时回归历史与 CSV。备份与恢复暂缓；后续可评估两小时降雨或逐小时环境预报。地形海拔需独立选源并注明高程基准，不从手机定位高度直接填充。
 
-定位仅使用 Android 自带 LocationManager，没有引入 Google Play Services、账号、AI 模型或自建服务器。首页区域定位会在主动点击后将两位小数坐标发送给和风；打开日光与天空时，有效定位高度可作为太阳角度的近似参考参数发送。探测页测速不上传位置，分别控制。历史快照只保留区域名称及指标，不保存经纬度、高度或轨迹。
+定位仅使用 Android 自带 LocationManager，没有引入 Google Play Services、账号、AI 模型或自建服务器。首页区域定位会在主动点击后将两位小数坐标发送给和风；打开日光与天空时，有效定位高度可作为太阳角度的近似参考参数发送。探测页测速不上传位置，分别控制。历史快照保留区域名称及指标，0.9.1 起也可保存近似定位高度、原定位时间和精度说明，不保存经纬度或轨迹。
 
 参考：[AGP 8.13 兼容矩阵](https://developer.android.com/build/releases/agp-8-13-0-release-notes)、[Android 传感器概览](https://developer.android.com/develop/sensors-and-location/sensors/sensors_overview)、[和风天气官方开发者文档](https://dev.qweather.com/)。

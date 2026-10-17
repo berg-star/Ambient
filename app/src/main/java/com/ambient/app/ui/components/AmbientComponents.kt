@@ -53,6 +53,7 @@ fun MetricSourceLabel(metric: EnvironmentMetric, modifier: Modifier = Modifier) 
         DataSource.DEVICE -> "手机实测"
         DataSource.REGIONAL_API -> "区域 API"
         DataSource.ESTIMATED -> "算法估计"
+        DataSource.POSITIONING -> if (metric.isSimulated) "模拟定位" else "上次定位估计"
     }
     Text(label, modifier = modifier, fontSize = 11.sp, lineHeight = 16.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
@@ -66,6 +67,7 @@ fun SourceBadge(source: DataSource, modifier: Modifier = Modifier) {
             DataSource.DEVICE -> "手机实测"
             DataSource.REGIONAL_API -> "区域 API"
             DataSource.ESTIMATED -> "算法估计"
+            DataSource.POSITIONING -> "定位估计"
         },
         modifier = modifier,
         accent = source == DataSource.DEVICE,

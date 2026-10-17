@@ -6,6 +6,10 @@ import com.ambient.app.data.environment.qweather.QWeatherCredentials
 import com.ambient.app.data.environment.qweather.SecureWeatherStore
 import com.ambient.app.domain.environment.EnvironmentArea
 import com.ambient.app.domain.environment.EnvironmentPreferences
+import com.ambient.app.domain.environment.EnvironmentSnapshot
+import com.ambient.app.domain.environment.EnvironmentMetric
+import com.ambient.app.domain.environment.DataSource
+import com.ambient.app.data.environment.SnapshotCodec
 import com.ambient.app.domain.sky.*
 import com.google.gson.Gson
 import net.i2p.crypto.eddsa.EdDSAPrivateKey
@@ -40,7 +44,7 @@ class SkyUiFixture {
             }
             return
         }
-        check(mode in listOf("reference", "height", "missing"))
+        check(mode in listOf("reference", "height", "missing", "overview-height", "overview-missing", "overview-manual", "overview-no-weather"))
         if (!backup.exists()) {
             backup.mkdirs()
             keys.forEach { key -> File(directory, key).takeIf { it.exists() }?.copyTo(File(backup, key)) }
@@ -48,10 +52,13 @@ class SkyUiFixture {
         val now = Instant.now()
         val zone = ZoneId.of("Asia/Shanghai")
         val date = now.atZone(zone).toLocalDate()
+        val hasHeight = mode in listOf("height", "overview-height", "overview-manual", "overview-no-weather")
+        val device = mode in listOf("height", "overview-height", "overview-missing", "overview-no-weather")
         val area = EnvironmentArea("界面测试 · 非实际天文数据", 39.92, 116.41,
-            fromDevice = mode == "height", isMock = mode == "height", timeZone = zone.id,
-            positioningHeightMeters = if (mode == "height") 123.0 else null,
-            verticalAccuracyMeters = if (mode == "height") 15.0 else null)
+            fromDevice = device, isMock = device, timeZone = zone.id,
+            positioningHeightMeters = if (hasHeight) 123.0 else null,
+            verticalAccuracyMeters = if (hasHeight) 15.0 else null,
+            positioningHeightAtMillis = if (hasHeight) now.minusSeconds(120).toEpochMilli() else null)
         val seed = EdDSAPrivateKeySpec(ByteArray(32) { it.toByte() }, EdDSANamedCurveTable.ED_25519_CURVE_SPEC)
         val pem = "-----BEGIN PRIVATE " + "KEY-----\n" + Base64.getEncoder().encodeToString(EdDSAPrivateKey(seed).encoded) + "\n-----END PRIVATE " + "KEY-----"
         val credentials = QWeatherCredentials("Q12345ABCD", "PROJECT01", "CRED00001", "test.qweatherapi.com", pem)
@@ -67,6 +74,11 @@ class SkyUiFixture {
         store.write("credentials", credentials.encode())
         store.write("preferences", Gson().toJson(EnvironmentPreferences(true, true, area)))
         store.delete("snapshot")
+        if (mode.startsWith("overview-") && mode != "overview-no-weather") store.write("snapshot", SnapshotCodec.encode(
+            EnvironmentSnapshot(area.label, now, listOf(
+                EnvironmentMetric("temperature", "室外温度", "20.0", "°C", DataSource.REGIONAL_API, "合成界面测试，非实际天气"),
+                EnvironmentMetric("altitude", "地形海拔", "—", "m", DataSource.ESTIMATED, "未接入")),
+                notices = listOf("离线测试夹具 · 非实际天气或定位数据"))))
         store.write("sky", Gson().toJson(snapshot))
     }
 }

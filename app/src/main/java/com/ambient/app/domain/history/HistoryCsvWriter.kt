@@ -45,7 +45,7 @@ object HistoryCsvWriter {
     }
 
     private fun EnvironmentMetric.cells() = listOf(
-        id, label, value, unit, source.name, source.displayLabel(), description,
+        id, label, value, unit, source.name, if (source == DataSource.POSITIONING && isSimulated) "模拟定位" else source.displayLabel(), description,
         windFromDegrees?.toString().orEmpty(),
     )
 
@@ -54,6 +54,7 @@ object HistoryCsvWriter {
         DataSource.DEVICE -> "手机实测"
         DataSource.REGIONAL_API -> "区域 API"
         DataSource.ESTIMATED -> "算法估计"
+        DataSource.POSITIONING -> "定位估计"
     }
 
     private fun writeRow(writer: Writer, cells: List<String>, numericColumns: Set<Int> = emptySet()) {

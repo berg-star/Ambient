@@ -95,11 +95,11 @@ fun SettingsScreen(
                 DataExplanation("区域环境", "连接和风后来自所选区域的网络 API，非手机实测；演示模式始终明确标注。海平面气压不等于手机所在地气压。")
                 DataExplanation("计算与估计", "合成强度由 XYZ 分量计算；去重力加速度来自系统计算。日光与天空使用和风天文计算；倒计时和白昼进度由本机根据时间计算，均非手机实测。")
                 DataExplanation("定位与隐私", "速度定位仅在探测页前台运行，不上传。首页的“使用当前位置”获取一次位置，用于和风天气与天文计算；坐标保留两位小数，定位高度可作为太阳角度的近似参数发送给和风。所选区域和缓存仅在本机加密保存。")
-                DataExplanation("高度与海拔", "定位提供有效高度时，可用于太阳角度的近似参考；WGS84 定位高度不是地形海拔，缺失时明确使用 0 米参考参数。地形海拔仍需独立数据源。")
+                DataExplanation("高度与海拔", "总览显示上次单次定位的近似高度，来源是系统定位估计（WGS84），不是准确地形海拔；缺失时显示横线。太阳角度另可使用 0 米参考参数，不作为高度读数。")
                 DataExplanation("环境记录", "手动保存真实区域快照，保留原获取时间和缓存标记。历史记录仅保存在本机；清除天气凭据不会删除记录，卸载或清除 App 数据会删除记录。")
             }
         }
-        Text("Ambient · 0.9.0\n个人环境探测工具 · 无账号 · 无自建服务器",
+        Text("Ambient · 0.9.1\n个人环境探测工具 · 无账号 · 无自建服务器",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
     }

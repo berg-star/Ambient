@@ -33,10 +33,10 @@ internal fun historyTime(time: Instant): String = DateTimeFormatter.ofPattern("y
 @Composable
 fun SnapshotSaveControl(history: HistoryViewModel, environment: EnvironmentUiState, onOpenHistory: () -> Unit) {
     val action by history.actions.collectAsStateWithLifecycle()
-    val reason = SnapshotPolicy.unavailableReason(environment.snapshot)
+    val reason = SnapshotPolicy.unavailableReason(environment.displaySnapshot)
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = { history.prepareSave(environment.snapshot, environment.isCached) },
+            OutlinedButton(onClick = { history.prepareSave(environment.displaySnapshot, environment.isCached) },
                 enabled = reason == null && !action.busy && !environment.isRefreshing && !environment.isLocating,
                 modifier = Modifier.weight(1f)) { Text("保存环境快照") }
             TextButton(onClick = onOpenHistory, enabled = !action.busy) { Text("查看记录") }
@@ -60,7 +60,7 @@ fun SnapshotSaveControl(history: HistoryViewModel, environment: EnvironmentUiSta
                         enabled = !action.busy, modifier = Modifier.fillMaxWidth(),
                         supportingText = { Text("${note.length}/${SnapshotPolicy.MAX_NOTE_LENGTH}") })
                     action.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-                    Text("保存时间在写入时记录，与数据获取时间分别展示。", style = MaterialTheme.typography.labelSmall,
+                    Text("保存时间在写入时记录，与数据获取时间分别展示。定位高度若存在，保留独立来源及原定位时间，不代表天气获取时重新测量。", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },

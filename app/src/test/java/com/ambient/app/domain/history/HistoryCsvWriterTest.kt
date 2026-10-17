@@ -75,7 +75,7 @@ class HistoryCsvWriterTest {
     @Test fun sourceCodesLabelsAndWindBearingsArePreserved() {
         val sources = listOf(
             DataSource.DEMO to "演示数据", DataSource.DEVICE to "手机实测",
-            DataSource.REGIONAL_API to "区域 API", DataSource.ESTIMATED to "算法估计",
+            DataSource.REGIONAL_API to "区域 API", DataSource.ESTIMATED to "算法估计", DataSource.POSITIONING to "定位估计",
         )
         val snapshot = record.snapshot.copy(
             metrics = sources.map { (source, _) -> metric.copy(source = source, windFromDegrees = 67.5) },

@@ -2,7 +2,7 @@ package com.ambient.app.domain.environment
 
 import java.time.Instant
 
-enum class DataSource { DEMO, DEVICE, REGIONAL_API, ESTIMATED }
+enum class DataSource { DEMO, DEVICE, REGIONAL_API, ESTIMATED, POSITIONING }
 
 data class EnvironmentMetric(
     val id: String,
@@ -13,6 +13,7 @@ data class EnvironmentMetric(
     val description: String,
     /** Meteorological source bearing: clockwise from north. Null means no directional arrow. */
     val windFromDegrees: Double? = null,
+    val isSimulated: Boolean = false,
 )
 
 data class EnvironmentSnapshot(
@@ -53,6 +54,8 @@ data class EnvironmentArea(
     /** Android's approximate WGS84 ellipsoid height at the phone, NOT terrain/MSL elevation. */
     val positioningHeightMeters: Double? = null,
     val verticalAccuracyMeters: Double? = null,
+    /** System-reported fix time, distinct from weather retrieval and UI refresh time. */
+    val positioningHeightAtMillis: Long? = null,
 )
 
 data class EnvironmentPreferences(

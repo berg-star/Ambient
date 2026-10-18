@@ -63,6 +63,7 @@ import kotlin.math.abs
 fun SensorsScreen(
     viewModel: SensorsViewModel,
     modifier: Modifier = Modifier,
+    onOpenObservation: () -> Unit = {},
     speedContent: @Composable () -> Unit = {},
 ) {
     val enabled by viewModel.monitoringEnabled.collectAsStateWithLifecycle()
@@ -87,6 +88,9 @@ fun SensorsScreen(
                 Text(if (virtualDevice) "验证数据采集与交互，不代表真实环境。" else "查看实测读数与明确标注的系统计算数据。",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+        item {
+            TextButton(onClick = onOpenObservation) { Text("观察模式 · 30 秒 / 1 分钟  ›") }
         }
         if (virtualDevice) item {
             Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = .7f)) {

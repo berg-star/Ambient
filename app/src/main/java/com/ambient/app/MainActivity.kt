@@ -71,6 +71,9 @@ import com.ambient.app.ui.screens.SkyScreen
 import com.ambient.app.ui.precipitation.PrecipitationViewModel
 import com.ambient.app.ui.screens.PrecipitationScreen
 import com.ambient.app.ui.screens.EnvironmentDetailsScreen
+import com.ambient.app.ui.screens.ObservationScreen
+import com.ambient.app.ui.observation.ObservationViewModel
+import com.ambient.app.data.observation.AndroidObservationRepository
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -155,6 +158,9 @@ private fun AmbientApp(
     val sensors: SensorsViewModel = viewModel(factory = remember {
         ambientFactory { SensorsViewModel(AndroidSensorRepository(context), AndroidOrientationRepository(context)) }
     })
+    val observation: ObservationViewModel = viewModel(factory = remember {
+        ambientFactory { ObservationViewModel(AndroidObservationRepository(context)) }
+    })
     val speed: SpeedViewModel = viewModel(factory = remember {
         ambientFactory { SpeedViewModel(AndroidLocationSpeedRepository(context)) }
     })
@@ -163,11 +169,12 @@ private fun AmbientApp(
     var showSky by rememberSaveable { mutableStateOf(false) }
     var showPrecipitation by rememberSaveable { mutableStateOf(false) }
     var showDetails by rememberSaveable { mutableStateOf(false) }
+    var showObservation by rememberSaveable { mutableStateOf(false) }
     val selected = Destination.valueOf(destination)
-    BackHandler(showSettings || showSky || showPrecipitation || showDetails || selected != Destination.OVERVIEW) {
+    BackHandler(showSettings || showSky || showPrecipitation || showDetails || showObservation || selected != Destination.OVERVIEW) {
         if (showSettings) showSettings = false else if (showSky) showSky = false
         else if (showPrecipitation) showPrecipitation = false else if (showDetails) showDetails = false
-        else destination = Destination.OVERVIEW.name
+        else if (showObservation) showObservation = false else destination = Destination.OVERVIEW.name
     }
     AmbientBackdrop(Modifier.fillMaxSize()) {
     Scaffold(
@@ -179,12 +186,13 @@ private fun AmbientApp(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent,
                 ),
-                title = { Text(if (showSettings) "设置" else if (showSky) "日光与天空" else if (showPrecipitation) "降水预报" else if (showDetails) "环境详情" else "Ambient", style = MaterialTheme.typography.titleLarge) },
+                title = { Text(if (showSettings) "设置" else if (showObservation) "观察模式" else if (showSky) "日光与天空" else if (showPrecipitation) "降水预报" else if (showDetails) "环境详情" else "Ambient", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     if (showSettings) TextButton(onClick = { showSettings = false }) { Text("返回") }
                     else if (showSky) TextButton(onClick = { showSky = false }) { Text("返回") }
                     else if (showPrecipitation) TextButton(onClick = { showPrecipitation = false }) { Text("返回") }
                     else if (showDetails) TextButton(onClick = { showDetails = false }) { Text("返回") }
+                    else if (showObservation) TextButton(onClick = { showObservation = false }) { Text("返回") }
                 },
                 actions = {
                     if (!showSettings) TextButton(onClick = { showSettings = true }) { Text("设置") }
@@ -192,7 +200,7 @@ private fun AmbientApp(
             )
         },
         bottomBar = {
-            if (!showSettings && !showSky && !showPrecipitation && !showDetails) NavigationBar(
+            if (!showSettings && !showSky && !showPrecipitation && !showDetails && !showObservation) NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 tonalElevation = 0.dp,
             ) {
@@ -218,6 +226,7 @@ private fun AmbientApp(
                 modifier = contentModifier,
                 weatherContent = { WeatherSettingsCard(overview) },
             )
+            else if (showObservation) ObservationScreen(observation, contentModifier)
             else if (showDetails) {
                 val detailsState by overview.state.collectAsStateWithLifecycle()
                 EnvironmentDetailsScreen(detailsState, overview::refresh, contentModifier)
@@ -264,7 +273,7 @@ private fun AmbientApp(
                         speed.resume()
                         onPauseOrDispose { speed.pause() }
                     }
-                    SensorsScreen(sensors, contentModifier) { LocationSpeedCard(speed) }
+                    SensorsScreen(sensors, contentModifier, onOpenObservation = { showObservation = true }) { LocationSpeedCard(speed) }
                 }
                 Destination.HISTORY -> HistoryScreen(history, export, { destination = Destination.OVERVIEW.name }, contentModifier)
             }

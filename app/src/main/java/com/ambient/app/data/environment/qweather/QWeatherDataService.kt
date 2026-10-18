@@ -6,6 +6,7 @@ import com.ambient.app.domain.environment.EnvironmentDataService
 import com.ambient.app.domain.environment.EnvironmentException
 import com.ambient.app.domain.environment.EnvironmentMetric
 import com.ambient.app.domain.environment.EnvironmentSnapshot
+import com.ambient.app.domain.environment.EnvironmentDetails
 import com.google.gson.JsonObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -48,6 +49,18 @@ object QWeatherDecoder {
             add(id, label, value, unit, description)
         }
         measurement("temperature", "temperature", "室外温度", "°C", "和风天气提供的区域气温，非手机温度传感器读数。")
+        val detail = EnvironmentDetails.definitions.associateBy { it.id }
+        for (key in listOf("feelsLike", "dewPoint", "windGust")) {
+            val definition = detail.getValue(key)
+            measurement(key, key, definition.label, definition.unit, definition.meaning, key == "windGust")
+        }
+        val visibility = weather.obj("visibility")
+        val meters = visibility.number("value")?.takeIf { it >= 0 && visibility.string("unit") == "m" }
+        val useKm = meters != null && meters >= 1000
+        add("visibility", "能见度", meters?.let { if (useKm) it / 1000 else it }, if (useKm) "km" else "m",
+            detail.getValue("visibility").meaning, if (useKm) 2 else 1)
+        add("cloudCover", "云量", weather.number("cloudCover")?.takeIf { it in 0.0..1.0 }?.times(100), "%",
+            detail.getValue("cloudCover").meaning, 0)
         add("humidity", "相对湿度", weather.number("humidity")?.takeIf { it in 0.0..1.0 }?.times(100), "%",
             "和风区域相对湿度；接口的 0–1 比例已转换为百分比。", 0)
         measurement("pressure", "pressure", "海平面气压", "hPa", "和风提供的海平面气压，经过海平面订正，不能直接与手机所在地的气压读数比较。", true)

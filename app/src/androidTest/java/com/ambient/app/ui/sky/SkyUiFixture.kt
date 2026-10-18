@@ -30,6 +30,14 @@ class SkyUiFixture {
         val args = InstrumentationRegistry.getArguments()
         val mode = args.getString("skyFixture") ?: return
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        if (mode == "details-verify-live") {
+            val payload = SecureWeatherStore(context).read("snapshot") ?: error("No live weather cache")
+            val weather = SnapshotCodec.decode(payload)
+            check(!weather.isDemo && weather.areaLabel.contains("北京"))
+            val details = com.ambient.app.domain.environment.EnvironmentDetails.metrics(weather)
+            check(details.all { it.source == DataSource.REGIONAL_API && it.value != "—" && it.value.toDoubleOrNull()?.isFinite() == true })
+            return
+        }
         val directory = File(context.noBackupFilesDir, "weather")
         val backup = File(context.noBackupFilesDir, "sky-ui-test-backup")
         val keys = listOf("credentials", "preferences", "snapshot", "sky", "precipitation")
@@ -44,7 +52,8 @@ class SkyUiFixture {
             }
             return
         }
-        check(mode in listOf("reference", "height", "missing", "overview-height", "overview-missing", "overview-manual", "overview-no-weather"))
+        check(mode in listOf("reference", "height", "missing", "overview-height", "overview-missing", "overview-manual", "overview-no-weather",
+            "details-values", "details-missing", "details-legacy", "details-zero", "details-old", "details-no-weather", "details-demo"))
         if (!backup.exists()) {
             backup.mkdirs()
             keys.forEach { key -> File(directory, key).takeIf { it.exists() }?.copyTo(File(backup, key)) }
@@ -74,6 +83,29 @@ class SkyUiFixture {
         store.write("credentials", credentials.encode())
         store.write("preferences", Gson().toJson(EnvironmentPreferences(true, true, area)))
         store.delete("snapshot")
+        if (mode.startsWith("details-")) {
+            store.delete("sky"); store.delete("precipitation")
+            if (mode == "details-demo") {
+                store.delete("credentials"); store.write("preferences", Gson().toJson(EnvironmentPreferences())); return
+            }
+            if (mode == "details-no-weather") return
+            val zero = mode == "details-zero"
+            val json = com.google.gson.JsonParser.parseString("""{"metadata":{"attributions":["离线合成天气 · 非实际观测"]},"temperature":{"value":20,"unit":"°C"}}""").asJsonObject
+            if (mode !in listOf("details-missing", "details-legacy")) {
+                for ((key,value,unit) in listOf(Triple("feelsLike", if(zero) 0.0 else 22.4,"°C"),
+                    Triple("dewPoint",if(zero) 0.0 else -2.3,"°C"),Triple("visibility",if(zero) 0.0 else 12340.0,"m"),
+                    Triple("windGust",if(zero) 0.0 else 7.1,"m/s"))) {
+                    json.add(key, com.google.gson.JsonObject().apply { addProperty("value",value); addProperty("unit",unit) })
+                }
+                json.addProperty("cloudCover",if(zero) 0.0 else 0.42)
+            }
+            val detailsArea=area.copy(label="离线界面测试 · 非实际天气")
+            store.write("preferences",Gson().toJson(EnvironmentPreferences(true,true,detailsArea)))
+            var weather=com.ambient.app.data.environment.qweather.QWeatherDecoder.decode(json,null,detailsArea,
+                if(mode=="details-old") now.minusSeconds(3600) else now)
+            if(mode=="details-legacy") weather=weather.copy(metrics=com.ambient.app.domain.environment.EnvironmentDetails.overviewMetrics(weather.metrics))
+            store.write("snapshot",SnapshotCodec.encode(weather)); return
+        }
         if (mode.startsWith("overview-") && mode != "overview-no-weather") store.write("snapshot", SnapshotCodec.encode(
             EnvironmentSnapshot(area.label, now, listOf(
                 EnvironmentMetric("temperature", "室外温度", "20.0", "°C", DataSource.REGIONAL_API, "合成界面测试，非实际天气"),

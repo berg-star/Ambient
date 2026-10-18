@@ -64,6 +64,24 @@ class HistoryDatabaseTest {
     }
     private fun draft(id: String = UUID.randomUUID().toString(), cached: Boolean = true) = SnapshotDraft(id, snapshot, cached)
 
+    @Test fun detailMetricsKeepValuesUnitsAndSourceInRoomAndCsv() = runBlocking {
+        val definitions=com.ambient.app.domain.environment.EnvironmentDetails.definitions
+        val values=listOf("22.4","-2.3","12.34","42","7.1")
+        val details=definitions.mapIndexed { index, d -> EnvironmentMetric(d.id,d.label,values[index],
+            if(d.id=="visibility") "km" else d.unit,DataSource.REGIONAL_API,d.meaning) }
+        val expected=snapshot.copy(metrics=snapshot.metrics+details)
+        val input=SnapshotDraft(UUID.randomUUID().toString(),expected,true)
+        repository.save(input,"synthetic details")
+        val saved=repository.observeRecord(input.id).first()!!
+        assertEquals(expected,saved.snapshot)
+        val csv=StringWriter()
+        repository.visitRecordsForExport { HistoryCsvWriter.writeRecord(csv,it) }
+        details.forEach { metric ->
+            assertTrue(csv.toString().contains("\"${metric.id}\",\"${metric.label}\",\"${metric.value}\",\"${metric.unit}\",\"REGIONAL_API\""))
+        }
+        assertEquals(fetchedAt,saved.snapshot.updatedAt)
+    }
+
     @Test fun positioningHeightKeepsItsOwnSourceAndFixTimeThroughRoomAndCsv() = runBlocking {
         val fixTime = fetchedAt.minusSeconds(120)
         val area = EnvironmentArea(snapshot.areaLabel, 30.0, 120.0, fromDevice = true, isMock = true,

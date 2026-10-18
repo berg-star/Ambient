@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ambient.app.domain.environment.EnvironmentMetric
 import com.ambient.app.domain.environment.DataSource
+import com.ambient.app.domain.environment.EnvironmentDetails
 import com.ambient.app.ui.overview.EnvironmentViewModel
 import androidx.compose.ui.platform.LocalUriHandler
 import com.ambient.app.ui.components.InstrumentSymbol
@@ -68,12 +69,14 @@ fun EnvironmentScreen(
     saveContent: @Composable () -> Unit = {},
     onOpenSky: () -> Unit = {},
     onOpenPrecipitation: () -> Unit = {},
+    onOpenDetails: () -> Unit = {},
 ) {
     val snapshot = state.displaySnapshot
     val temperature = snapshot?.metrics?.firstOrNull { it.id == "temperature" }
     // The four useful overview tiles stay together; the rest remain available below.
     val priority = listOf("humidity", "pressure", "aqi", "altitude")
-    val otherMetrics = (snapshot?.metrics ?: listOf(state.heightWithoutWeather)).filterNot { it.id == "temperature" }
+    val otherMetrics = EnvironmentDetails.overviewMetrics(snapshot?.metrics ?: listOf(state.heightWithoutWeather))
+        .filterNot { it.id == "temperature" }
         .sortedBy { priority.indexOf(it.id).let { index -> if (index >= 0) index else priority.size } }
     val visuals = LocalAmbientVisuals.current
     var selectedMetric by remember { mutableStateOf<EnvironmentMetric?>(null) }
@@ -158,8 +161,9 @@ fun EnvironmentScreen(
                         ThemeStyle.MISTY_DUSK -> "环境一览"
                         ThemeStyle.FLOWING_GLASS -> "环境手记"
                     }, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-                    Text(if (demo) "轻触了解 · 示例数值" else "轻触了解 · 数据来源", style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = onOpenDetails, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                        Text("环境详情  ›", style = MaterialTheme.typography.labelMedium)
+                    }
                 }
             }
             if (visuals.style == ThemeStyle.FLOWING_GLASS) {

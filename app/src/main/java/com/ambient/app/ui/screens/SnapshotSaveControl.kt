@@ -41,7 +41,7 @@ fun SnapshotSaveControl(history: HistoryViewModel, environment: EnvironmentUiSta
                 modifier = Modifier.weight(1f)) { Text("保存环境快照") }
             TextButton(onClick = onOpenHistory, enabled = !action.busy) { Text("查看记录") }
         }
-        Text(reason ?: "保存当前显示的数据，不额外刷新。", style = MaterialTheme.typography.labelSmall,
+        Text(reason ?: "保存本次环境数据（含详情指标），不额外刷新。", style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         action.message?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
     }

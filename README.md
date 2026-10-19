@@ -2,7 +2,7 @@
 
 个人使用的原生 Android 环境仪表：**和风区域环境 + 两小时降水及 24 / 72 小时趋势 + 日光与天空 + 真实设备传感器与定时观察 + 手机指南针与水平仪 + 本机快照筛选与对比 + CSV 导出 + 三套渐变主题**。
 
-源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **0.12.0**；参阅[传感器观察模式](docs/observation.md)、[环境详情](docs/environment-details.md)、[降水预报](docs/precipitation.md)、[总览定位高度](docs/overview-height.md)、[日光与天空](docs/sky.md)、[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
+源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **1.0.0**；参阅[真机静置验收](docs/phone-acceptance.md)、[传感器观察模式](docs/observation.md)、[环境详情](docs/environment-details.md)、[降水预报](docs/precipitation.md)、[总览定位高度](docs/overview-height.md)、[日光与天空](docs/sky.md)、[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
 
 ## 开发环境
 
@@ -12,7 +12,7 @@
 - Compose BOM 2025.12.01、Material 3、Lifecycle 2.10.0、Coroutines。
 - Retrofit 3.0.0、OkHttp 4.12.0；EdDSA 0.3.0 用于 Android 8+ 的 JWT 签名。
 - Room 2.8.5 / SQLite、KSP 2.3.12；历史数据库从 schema v1 开始。
-- 包名 `com.ambient.app`，版本 `0.12.0`（versionCode 15）。
+- 包名 `com.ambient.app`，版本 `1.0.0`（versionCode 16）。
 
 本机复用了 `L:\AI-Accounting\.tools` 中已有的 JDK 和 SDK。旧项目源码和 AVD 不参与 Ambient 构建；Gradle 依赖缓存已复制到 Ambient 自己的 `.gradle-user-home`，运行构建不会使用旧项目缓存作为写入目录。所有机器路径只在被 Git 忽略的本地配置中。
 
@@ -174,7 +174,7 @@ adb -s 你的手机序列号 install -r .\app\build\outputs\apk\debug\app-debug.
 
 ## 下一阶段
 
-先在 Pura 70 Pro 验收观察模式的 30 / 60 秒记录、光照变化、对照与离页停止，同时回归日光与天空、定位高度、指南针、水平仪、降水、历史与 CSV。观察结果当前仅在进程内保留，持久化和导出另行规划；备份与恢复暂缓。地形海拔需独立选源并注明高程基准，不从手机定位高度直接填充。
+1.0.0 已完成 Pura 70 Pro 的观察模式与主要页面静置验收，详情与边界见[真机验收记录](docs/phone-acceptance.md)。后续补测遮光响应、手持转动与倾斜、户外定位与移动测速、长期续航和更多机型；本轮没有重新验证 CSV 保存或新增历史记录。观察结果当前仅在进程内保留，持久化和导出另行规划；备份与恢复暂缓。地形海拔需独立选源并注明高程基准，不从手机定位高度直接填充。
 
 定位仅使用 Android 自带 LocationManager，没有引入 Google Play Services、账号、AI 模型或自建服务器。首页区域定位会在主动点击后将两位小数坐标发送给和风；打开日光与天空时，有效定位高度可作为太阳角度的近似参考参数发送。探测页测速不上传位置，分别控制。历史快照保留区域名称及指标，0.9.1 起也可保存近似定位高度、原定位时间和精度说明，不保存经纬度或轨迹。
 

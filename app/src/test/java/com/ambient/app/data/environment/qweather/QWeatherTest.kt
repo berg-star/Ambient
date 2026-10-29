@@ -21,8 +21,12 @@ import org.junit.Test
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Base64
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class QWeatherTest {
     private val time = Instant.parse("2026-10-16T08:00:00Z")
@@ -111,6 +115,94 @@ class QWeatherTest {
     @Test fun persistentCacheRoundTripsTimeSourcesNoticesAndAttribution() {
         val original = QWeatherDecoder.decode(json(weather), json(air), area, time)
         assertEquals(original, SnapshotCodec.decode(SnapshotCodec.encode(original)))
+    }
+
+    @Test fun weatherAndAirKeepTheirIndependentRetrievalTimesWithoutInventingObservations() {
+        val weatherAt = time.minusSeconds(4)
+        val airAt = time.minusSeconds(2)
+        val snapshot = QWeatherDecoder.decode(json(weather), json(air), area, time,
+            weatherFetchedAt = weatherAt, airFetchedAt = airAt)
+        val metrics = snapshot.metrics.associateBy { it.id }
+        for (id in listOf("temperature", "humidity", "pressure", "windSpeed", "windDirection", "uv")) {
+            assertEquals(id, weatherAt.toEpochMilli(), metrics.getValue(id).fetchedAtMillis)
+        }
+        for (id in listOf("aqi", "pm25", "pm10")) {
+            assertEquals(id, airAt.toEpochMilli(), metrics.getValue(id).fetchedAtMillis)
+        }
+        assertTrue(snapshot.metrics.all { it.observedAtMillis == null })
+        assertEquals(time, snapshot.updatedAt)
+        assertEquals(snapshot, SnapshotCodec.decode(SnapshotCodec.encode(snapshot)))
+    }
+
+    @Test fun absentValuesAndFailedAirCannotBorrowWeatherRetrievalTime() {
+        val snapshot = QWeatherDecoder.decode(json(weather), null, area, time,
+            airWarning = "空气质量未更新", airFetchedAt = time.minusSeconds(10))
+        for (metric in snapshot.metrics.filter { it.value == "—" }) {
+            assertNull(metric.id, metric.fetchedAtMillis)
+            assertNull(metric.id, metric.observedAtMillis)
+        }
+        assertEquals(time.toEpochMilli(), snapshot.metrics.first { it.id == "temperature" }.fetchedAtMillis)
+    }
+
+    @Test fun aPartialAirPayloadDoesNotTimestampItsMissingMeasurements() {
+        val payload = json(air)
+        payload.getAsJsonArray("indexes").remove(1)
+        payload.getAsJsonArray("pollutants").remove(0)
+        val metrics = QWeatherDecoder.decode(json(weather), payload, area, time).metrics.associateBy { it.id }
+        assertNull(metrics.getValue("aqi").fetchedAtMillis)
+        assertNull(metrics.getValue("pm25").fetchedAtMillis)
+        assertEquals(time.toEpochMilli(), metrics.getValue("pm10").fetchedAtMillis)
+    }
+
+    @Test fun legacyCacheWithoutMetricTimesKeepsValuesAndDoesNotInventPerSourceTimes() {
+        val original = QWeatherDecoder.decode(json(weather), json(air), area, time)
+        val legacy = json(SnapshotCodec.encode(original))
+        legacy.getAsJsonArray("metrics").forEach {
+            it.asJsonObject.remove("fetchedAtMillis")
+            it.asJsonObject.remove("observedAtMillis")
+        }
+        val loaded = SnapshotCodec.decode(legacy.toString())
+        assertEquals(time, loaded.updatedAt)
+        assertEquals(original.metrics.map { it.value }, loaded.metrics.map { it.value })
+        assertTrue(loaded.metrics.all { it.fetchedAtMillis == null && it.observedAtMillis == null })
+    }
+
+    @Test fun observationMetadataRoundTripsWithoutBeingReplacedByFetchTime() {
+        val original = QWeatherDecoder.decode(json(weather), json(air), area, time)
+        val withObservation = original.copy(metrics = original.metrics.map {
+            if (it.id == "temperature") it.copy(observedAtMillis = time.minusSeconds(600).toEpochMilli()) else it
+        })
+        assertEquals(withObservation, SnapshotCodec.decode(SnapshotCodec.encode(withObservation)))
+    }
+
+    @Test fun serviceCapturesEachResponseCompletionBeforeCombiningTheSnapshot() = runBlocking {
+        val weatherReceived = CountDownLatch(1)
+        val ticks = AtomicInteger()
+        val clock = object : Clock() {
+            override fun getZone(): ZoneId = ZoneOffset.UTC
+            override fun withZone(zone: ZoneId): Clock = this
+            override fun instant(): Instant {
+                val tick = ticks.getAndIncrement()
+                if (tick == 0) weatherReceived.countDown()
+                return time.plusSeconds(tick.toLong())
+            }
+        }
+        MockWebServer().use { server ->
+            server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+                override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): MockResponse {
+                    if (request.path!!.startsWith("/airquality")) {
+                        if (!weatherReceived.await(10, TimeUnit.SECONDS)) return MockResponse().setResponseCode(504)
+                        return MockResponse().setBody(air)
+                    }
+                    return MockResponse().setBody(weather)
+                }
+            }
+            val result = QWeatherDataService(QWeatherClient(server.url("/").toString(), OkHttpClient()), area, clock).fetch()
+            assertEquals(time.toEpochMilli(), result.metrics.first { it.id == "temperature" }.fetchedAtMillis)
+            assertEquals(time.plusSeconds(1).toEpochMilli(), result.metrics.first { it.id == "aqi" }.fetchedAtMillis)
+            assertEquals(time.plusSeconds(2), result.updatedAt)
+            assertEquals(2, server.requestCount)
+        }
     }
 
     @Test fun windArrowKeepsApiAngleRatherThanGuessingTheSectorMidpoint() {

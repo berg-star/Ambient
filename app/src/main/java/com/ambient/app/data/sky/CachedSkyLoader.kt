@@ -31,20 +31,25 @@ class CachedSkyLoader(private val service: AstronomyDataService, private val clo
             return SkyResult(old, listOf("请间隔 30 秒再刷新日光与天空。"), isCached = old != null)
         lastAttempt = key to now
         val messages = mutableListOf<String>()
-        var fetched = false
+        var sunFetched = false
+        var moonFetched = false
+        var solarFetched = false
         suspend fun <T> part(label: String, work: suspend () -> T): T? = try {
-            work().also { fetched = true }
+            work()
         } catch (e: CancellationException) { throw e }
         catch (e: EnvironmentException) { messages += "$label：${e.userMessage}"; null }
         catch (_: Exception) { messages += "$label：数据读取失败，请稍后重试。"; null }
         val queryDate = date.replace("-", "")
         if (force || snapshot.sun?.let { fresh(it.fetchedAt, 172800) } != true) snapshot = snapshot.copy(
-            sun = part("日出日落") { service.sun(area, queryDate) } ?: snapshot.sun)
+            sun = part("日出日落") { service.sun(area, queryDate).also { sunFetched = true } } ?: snapshot.sun)
         if (force || snapshot.moon?.let { fresh(it.fetchedAt, 172800) } != true) snapshot = snapshot.copy(
-            moon = part("月相") { service.moon(area, queryDate) } ?: snapshot.moon)
+            moon = part("月相") { service.moon(area, queryDate).also { moonFetched = true } } ?: snapshot.moon)
         if (force || snapshot.solar?.let { fresh(it.fetchedAt, 600) } != true) snapshot = snapshot.copy(
-            solar = part("太阳角度") { service.solar(area, now, zone) } ?: snapshot.solar)
+            solar = part("太阳角度") { service.solar(area, now, zone).also { solarFetched = true } } ?: snapshot.solar)
         return SkyResult(snapshot.takeIf { it.sun != null || it.moon != null || it.solar != null },
-            messages, isCached = !fetched && old != null)
+            messages, isCached = !sunFetched && !moonFetched && !solarFetched && old != null,
+            sunCached = snapshot.sun != null && !sunFetched,
+            moonCached = snapshot.moon != null && !moonFetched,
+            solarCached = snapshot.solar != null && !solarFetched)
     }
 }

@@ -2,7 +2,7 @@
 
 个人使用的原生 Android 环境仪表：**和风区域环境 + 两小时降水及 24 / 72 小时趋势 + 日光与天空 + 真实设备传感器与定时观察 + 手机指南针与水平仪 + 本机快照筛选与对比 + CSV 导出 + 三套渐变主题**。
 
-源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **1.0.0**；参阅[真机静置验收](docs/phone-acceptance.md)、[传感器观察模式](docs/observation.md)、[环境详情](docs/environment-details.md)、[降水预报](docs/precipitation.md)、[总览定位高度](docs/overview-height.md)、[日光与天空](docs/sky.md)、[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
+源码仓库：[berg-star/Ambient](https://github.com/berg-star/Ambient)。当前版本 **1.1.0**；参阅[数据时间、缓存与定位](docs/data-freshness.md)、[真机静置验收](docs/phone-acceptance.md)、[传感器观察模式](docs/observation.md)、[环境详情](docs/environment-details.md)、[降水预报](docs/precipitation.md)、[总览定位高度](docs/overview-height.md)、[日光与天空](docs/sky.md)、[手机指南针与水平仪](docs/orientation.md)、[历史筛选、快照对比与可选趋势](docs/history-analysis.md)、[CSV 导出](docs/csv-export.md)、[环境快照与历史记录](docs/history.md)、[风向罗盘](docs/wind-compass.md)、[和风接入与配置说明](docs/qweather.md)、[版本记录](CHANGELOG.md)和[Git 使用说明](docs/version-control.md)。
 
 ## 开发环境
 
@@ -12,7 +12,7 @@
 - Compose BOM 2025.12.01、Material 3、Lifecycle 2.10.0、Coroutines。
 - Retrofit 3.0.0、OkHttp 4.12.0；EdDSA 0.3.0 用于 Android 8+ 的 JWT 签名。
 - Room 2.8.5 / SQLite、KSP 2.3.12；历史数据库从 schema v1 开始。
-- 包名 `com.ambient.app`，版本 `1.0.0`（versionCode 16）。
+- 包名 `com.ambient.app`，版本 `1.1.0`（versionCode 17）。
 
 本机复用了 `L:\AI-Accounting\.tools` 中已有的 JDK 和 SDK。旧项目源码和 AVD 不参与 Ambient 构建；Gradle 依赖缓存已复制到 Ambient 自己的 `.gradle-user-home`，运行构建不会使用旧项目缓存作为写入目录。所有机器路径只在被 Git 忽略的本地配置中。
 

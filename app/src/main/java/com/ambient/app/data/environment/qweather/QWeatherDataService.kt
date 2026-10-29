@@ -20,22 +20,27 @@ class QWeatherDataService(
     private val area: EnvironmentArea,
     private val clock: Clock = Clock.systemUTC(),
 ) : EnvironmentDataService {
+    private data class AirResult(val data: JsonObject?, val fetchedAt: Instant?, val warning: String? = null)
+
     override suspend fun fetch(): EnvironmentSnapshot = coroutineScope {
         val air = async {
-            try { client.air(area) to null }
+            try { AirResult(client.air(area), clock.instant()) }
             catch (e: CancellationException) { throw e }
-            catch (e: EnvironmentException) { null to "空气质量未更新：${e.userMessage}" }
+            catch (e: EnvironmentException) { AirResult(null, null, "空气质量未更新：${e.userMessage}") }
         }
         val weather = client.weather(area)
-        val (airData, warning) = air.await()
-        QWeatherDecoder.decode(weather, airData, area, clock.instant(), warning)
+        val weatherFetchedAt = clock.instant()
+        val result = air.await()
+        QWeatherDecoder.decode(weather, result.data, area, clock.instant(), result.warning,
+            weatherFetchedAt = weatherFetchedAt, airFetchedAt = result.fetchedAt)
     }
 }
 
 /** Maps only documented fields. Missing values remain missing; no sensor estimates here. */
 object QWeatherDecoder {
     fun decode(weather: JsonObject, air: JsonObject?, area: EnvironmentArea, fetchedAt: Instant,
-               airWarning: String? = null): EnvironmentSnapshot {
+               airWarning: String? = null, weatherFetchedAt: Instant = fetchedAt,
+               airFetchedAt: Instant? = fetchedAt.takeIf { air != null }): EnvironmentSnapshot {
         if (!weather.has("temperature") || !weather.has("metadata"))
             throw EnvironmentException("天气服务返回了无法识别的数据，请稍后重试。")
         val metrics = mutableListOf<EnvironmentMetric>()
@@ -99,6 +104,15 @@ object QWeatherDecoder {
             "显示本次获取时间；此接口未提供独立观测时间。")
         val attributions = (weather.obj("metadata").array("attributions") + air?.obj("metadata")?.array("attributions").orEmpty())
             .filter { it.isJsonPrimitive }.map { it.asString }.distinct()
-        return EnvironmentSnapshot(area.label, fetchedAt, metrics, attributions = attributions, notices = notices, isDemo = false)
+        // Air quality is fetched independently. A partial response must never borrow the weather time.
+        val timedMetrics = metrics.map { metric ->
+            val acquiredAt = when {
+                metric.source != DataSource.REGIONAL_API || metric.value == "—" -> null
+                metric.id in setOf("aqi", "pm25", "pm10") -> airFetchedAt.takeIf { air != null }
+                else -> weatherFetchedAt
+            }
+            metric.copy(fetchedAtMillis = acquiredAt?.toEpochMilli())
+        }
+        return EnvironmentSnapshot(area.label, fetchedAt, timedMetrics, attributions = attributions, notices = notices, isDemo = false)
     }
 }

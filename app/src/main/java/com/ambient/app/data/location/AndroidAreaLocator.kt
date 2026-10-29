@@ -90,5 +90,6 @@ internal fun areaFromLocation(location: Location): EnvironmentArea {
         positioningHeightMeters = location.altitude.takeIf { location.hasAltitude() && it.isFinite() && it in -500.0..10000.0 },
         verticalAccuracyMeters = location.verticalAccuracyMeters.toDouble().takeIf {
             location.hasVerticalAccuracy() && it.isFinite() && it >= 0.0
-        }, positioningHeightAtMillis = location.time.takeIf { location.hasAltitude() && it > 0 })
+        }, positioningHeightAtMillis = location.time.takeIf { location.hasAltitude() && it > 0 },
+        locatedAtMillis = location.time.takeIf { it > 0 })
 }

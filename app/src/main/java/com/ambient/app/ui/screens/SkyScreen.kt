@@ -85,8 +85,10 @@ fun SkyScreen(state: SkyUiState, onRefresh: () -> Unit, onOpenSensors: () -> Uni
             item {
                 Text("${snapshot.date} · ${if (snapshot.deviceZoneFallback) "设备时区" else "地区时区"} ${snapshot.zoneId}",
                     style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (state.result.isCached) Text("当日缓存 · 保留各项原获取时间", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state.result.sunCached || state.result.moonCached || state.result.solarCached) {
+                    Text(if (state.result.isCached) "本地缓存 · 保留各项原获取时间" else "部分使用本地缓存 · 查看各项获取时间",
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 if (snapshot.deviceZoneFallback) Text("尚无地区时区，暂按设备时区查询；跨时区时请重新搜索并选择城市。",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (snapshot.area.isMock) Text("模拟定位 · 测试地点，非手机真实位置", color = MaterialTheme.colorScheme.error,
@@ -108,7 +110,7 @@ fun SkyScreen(state: SkyUiState, onRefresh: () -> Unit, onOpenSensors: () -> Uni
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("无日出或日落数据时留空，不据此推断极昼或极夜。", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    FetchCaption(snapshot.sun?.fetchedAt, zone)
+                    FetchCaption(snapshot.sun?.fetchedAt, zone, state.result.sunCached)
                 }
             }
             item {
@@ -136,7 +138,7 @@ fun SkyScreen(state: SkyUiState, onRefresh: () -> Unit, onOpenSensors: () -> Uni
                     }
                     Text("使用总览的“当前位置”可尝试取得定位高度；本页不持续定位。", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    FetchCaption(solar?.fetchedAt, zone)
+                    FetchCaption(solar?.fetchedAt, zone, state.result.solarCached)
                 }
             }
             item {
@@ -149,7 +151,7 @@ fun SkyScreen(state: SkyUiState, onRefresh: () -> Unit, onOpenSensors: () -> Uni
                     Text("月面照明比例是天文计算，不是地面照度，也不能判断云层是否遮住月亮。",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     phase?.let { Text("对应时段 ${timeText(it.time, zone)}", style = MaterialTheme.typography.labelSmall) }
-                    FetchCaption(snapshot.moon?.fetchedAt, zone)
+                    FetchCaption(snapshot.moon?.fetchedAt, zone, state.result.moonCached)
                 }
             }
             item {
@@ -190,8 +192,8 @@ fun SkyScreen(state: SkyUiState, onRefresh: () -> Unit, onOpenSensors: () -> Uni
         Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium)
     }
 }
-@Composable private fun FetchCaption(at: Long?, zone: ZoneId) {
-    Text(at?.let { "获取于 ${instantText(it, zone)} · 可使用当日缓存" } ?: "暂无数据",
+@Composable private fun FetchCaption(at: Long?, zone: ZoneId, cached: Boolean) {
+    Text(at?.let { "获取于 ${instantText(it, zone)} · ${if (cached) "本地缓存" else "本次获取"}" } ?: "暂无数据",
         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 @Composable private fun DaylightArc(progress: Float?) {

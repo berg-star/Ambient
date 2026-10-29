@@ -18,7 +18,12 @@ data class SolarPosition(val elevation: Double?, val azimuth: Double?, val calcu
 data class SkySnapshot(val area: EnvironmentArea, val date: String, val zoneId: String,
                        val deviceZoneFallback: Boolean, val sun: SunTimes? = null,
                        val moon: MoonDay? = null, val solar: SolarPosition? = null)
-data class SkyResult(val snapshot: SkySnapshot?, val messages: List<String> = emptyList(), val isCached: Boolean = false)
+data class SkyResult(val snapshot: SkySnapshot?, val messages: List<String> = emptyList(),
+    val isCached: Boolean = false,
+    /** A partial refresh can retain an old part beside newly fetched calculations. */
+    val sunCached: Boolean = isCached && snapshot?.sun != null,
+    val moonCached: Boolean = isCached && snapshot?.moon != null,
+    val solarCached: Boolean = isCached && snapshot?.solar != null)
 fun interface SkyRepository { suspend fun loadSky(force: Boolean): SkyResult }
 
 fun positioningHeight(area: EnvironmentArea): Double? = area.positioningHeightMeters?.takeIf {

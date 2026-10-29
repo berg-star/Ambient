@@ -11,7 +11,10 @@ data class PrecipitationForecast(val points: List<PrecipitationPoint>, val fetch
 data class PrecipitationSnapshot(val area: EnvironmentArea, val minutely: PrecipitationForecast? = null,
                                  val hourly: PrecipitationForecast? = null)
 data class PrecipitationResult(val snapshot: PrecipitationSnapshot?, val messages: List<String> = emptyList(),
-                               val isCached: Boolean = false)
+    val isCached: Boolean = false,
+    /** Retrieval state belongs to this result, not the persisted forecast values. */
+    val minutelyCached: Boolean = isCached && snapshot?.minutely != null,
+    val hourlyCached: Boolean = isCached && snapshot?.hourly != null)
 interface PrecipitationDataService {
     suspend fun minutely(area: EnvironmentArea): PrecipitationForecast
     suspend fun hourly(area: EnvironmentArea): PrecipitationForecast

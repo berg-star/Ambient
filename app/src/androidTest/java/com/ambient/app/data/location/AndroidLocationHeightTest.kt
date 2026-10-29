@@ -32,4 +32,18 @@ class AndroidLocationHeightTest {
             assertNull(area.positioningHeightMeters); assertNull(area.verticalAccuracyMeters)
         }
     }
+
+    @Test fun areaFixTimeSurvivesEvenWhenTheLocationHasNoAltitude() {
+        val at = 1_790_000_000_000L
+        val area = areaFromLocation(fix().apply { time = at })
+        assertEquals(at, area.locatedAtMillis)
+        assertNull(area.positioningHeightMeters)
+        assertNull(area.positioningHeightAtMillis)
+    }
+
+    @Test fun absentFixTimeRemainsUnknown() {
+        val area = areaFromLocation(fix().apply { altitude = 123.4 })
+        assertNull(area.locatedAtMillis)
+        assertNull(area.positioningHeightAtMillis)
+    }
 }

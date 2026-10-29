@@ -22,7 +22,8 @@ fun positioningHeightMetric(area: EnvironmentArea?): EnvironmentMetric {
         append("天气刷新不会更新这个高度；移动后请重新点击“使用当前位置”。")
     }
     return EnvironmentMetric("altitude", "近似定位高度", height?.let { String.format(Locale.US, "%.0f", it) } ?: "—",
-        "m", DataSource.POSITIONING, description, isSimulated = height != null && area?.isMock == true)
+        "m", DataSource.POSITIONING, description, isSimulated = height != null && area?.isMock == true,
+        observedAtMillis = area?.positioningHeightAtMillis?.takeIf { height != null && it > 0 })
 }
 
 fun EnvironmentSnapshot.withPositioningHeight(area: EnvironmentArea?): EnvironmentSnapshot {

@@ -35,7 +35,7 @@ try {
     Open-Details
     Assert-WeatherText '区域 API · 和风天气 · 非手机实测'
     Assert-WeatherText '22.4'
-    Assert-WeatherText '缓存 · 获取于'
+    Assert-WeatherText '本地缓存'
     Save-Details 'glass-top'
     Show-HistoryText '-2.3'
     Show-HistoryText '12.34'
@@ -71,7 +71,7 @@ try {
     Pass-Details 'Old cache opens with placeholders and refresh explanation'
     Set-DetailsFixture 'details-old'
     Open-Details
-    Assert-WeatherText '较早数据或设备时间异常'
+    Assert-WeatherText '获取较早 · 建议刷新'
     Assert-WeatherText '22.4'
     Pass-Details 'Offline failure retains original cached values with old-data warning'
     Set-DetailsFixture 'details-no-weather'

@@ -254,7 +254,9 @@ private fun AmbientApp(
                 SkyScreen(skyState, { sky.load(force = true) }, {
                     showSky = false; destination = Destination.SENSORS.name
                 }, contentModifier, uv = matchingWeather?.metrics?.firstOrNull { it.id == "uv" },
-                    uvTime = matchingWeather?.updatedAt, uvCached = weatherState.isCached)
+                    uvTime = matchingWeather?.metrics?.firstOrNull { it.id == "uv" }?.fetchedAtMillis
+                        ?.let(java.time.Instant::ofEpochMilli) ?: matchingWeather?.updatedAt,
+                    uvCached = weatherState.isCached)
             }
             else when (selected) {
                 Destination.OVERVIEW -> {

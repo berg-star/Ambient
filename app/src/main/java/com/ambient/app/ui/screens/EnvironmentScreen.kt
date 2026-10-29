@@ -49,14 +49,17 @@ import com.ambient.app.ui.overview.EnvironmentViewModel
 import androidx.compose.ui.platform.LocalUriHandler
 import com.ambient.app.ui.components.InstrumentSymbol
 import com.ambient.app.ui.components.MetricSourceLabel
+import com.ambient.app.ui.components.DataFreshnessPanel
+import com.ambient.app.ui.components.LocationFreshnessLabel
+import com.ambient.app.ui.components.MetricFreshnessDetails
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.ambient.app.ui.components.WindDirectionIndicator
 import com.ambient.app.ui.components.WindCompass
 import com.ambient.app.ui.overview.EnvironmentUiState
 import com.ambient.app.ui.theme.AmbientPanel
 import com.ambient.app.ui.theme.LocalAmbientVisuals
 import com.ambient.app.ui.theme.ThemeStyle
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun EnvironmentScreen(
@@ -79,7 +82,8 @@ fun EnvironmentScreen(
         .filterNot { it.id == "temperature" }
         .sortedBy { priority.indexOf(it.id).let { index -> if (index >= 0) index else priority.size } }
     val visuals = LocalAmbientVisuals.current
-    var selectedMetric by remember { mutableStateOf<EnvironmentMetric?>(null) }
+    // A refresh must not pair an open dialog's old metric with the new batch's cache state.
+    var selectedMetric by remember(snapshot) { mutableStateOf<EnvironmentMetric?>(null) }
     val demo = snapshot?.isDemo ?: !state.preferences.enabled
     val uriHandler = LocalUriHandler.current
     LazyColumn(
@@ -93,11 +97,7 @@ fun EnvironmentScreen(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(snapshot?.areaLabel ?: state.preferences.area?.label ?: "区域数据尚未就绪", style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium)
-                    Text(snapshot?.updatedAt?.let {
-                        (if (demo) "演示加载 " else if (state.isCached) "缓存 · 获取于 " else "获取于 ") +
-                            DateTimeFormatter.ofPattern("MM-dd HH:mm:ss").withZone(ZoneId.systemDefault()).format(it)
-                    } ?: "尚无加载记录", style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    LocationFreshnessLabel(state)
                 }
                 TextButton(onClick = onRefresh, enabled = !state.isRefreshing && !state.isLocating,
                     contentPadding = PaddingValues(horizontal = 8.dp)) {
@@ -108,6 +108,7 @@ fun EnvironmentScreen(
                 }
             }
         }
+        item { DataFreshnessPanel(state) }
         item { EnvironmentModeSwitch(onOpenSensors) }
         item {
             AmbientPanel(Modifier.fillMaxWidth().clickable(onClick = onOpenPrecipitation)) {
@@ -240,8 +241,9 @@ fun EnvironmentScreen(
             onDismissRequest = { selectedMetric = null },
             title = { Text(metric.label) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     MetricSourceLabel(metric)
+                    MetricFreshnessDetails(metric, snapshot, state.isCached)
                     if (metric.id == "windDirection") {
                         WindCompass(metric.windFromDegrees, metric.value,
                             Modifier.size(112.dp).align(Alignment.CenterHorizontally))

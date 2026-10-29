@@ -24,17 +24,20 @@ class CachedPrecipitationLoader(private val service: PrecipitationDataService,
         lastAttempt = area to now.toEpochMilli()
         var snapshot = old ?: PrecipitationSnapshot(area)
         val messages = mutableListOf<String>()
-        var fetched = false
+        var minutelyFetched = false
+        var hourlyFetched = false
         suspend fun part(label: String, block: suspend () -> PrecipitationForecast): PrecipitationForecast? = try {
-            block().also { fetched = true }
+            block()
         } catch (e: CancellationException) { throw e }
         catch (e: EnvironmentException) { messages += "$label：${e.userMessage}"; null }
         catch (_: Exception) { messages += "$label：数据读取失败，请稍后重试。"; null }
         if (force || !fresh(snapshot.minutely, ForecastRange.TWO_HOURS)) snapshot = snapshot.copy(
-            minutely = part("两小时降水") { service.minutely(area) } ?: snapshot.minutely)
+            minutely = part("两小时降水") { service.minutely(area).also { minutelyFetched = true } } ?: snapshot.minutely)
         if (force || !fresh(snapshot.hourly, ForecastRange.THREE_DAYS)) snapshot = snapshot.copy(
-            hourly = part("逐小时降水") { service.hourly(area) } ?: snapshot.hourly)
+            hourly = part("逐小时降水") { service.hourly(area).also { hourlyFetched = true } } ?: snapshot.hourly)
         return PrecipitationResult(snapshot.takeIf { it.minutely != null || it.hourly != null }, messages,
-            isCached = !fetched && old != null)
+            isCached = !minutelyFetched && !hourlyFetched && old != null,
+            minutelyCached = snapshot.minutely != null && !minutelyFetched,
+            hourlyCached = snapshot.hourly != null && !hourlyFetched)
     }
 }

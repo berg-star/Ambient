@@ -63,7 +63,7 @@ try {
     Invoke-WeatherDevice shell svc data disable | Out-Null
     Invoke-WeatherDevice shell am force-stop com.ambient.app | Out-Null
     Invoke-WeatherDevice shell am start -W -n com.ambient.app/.MainActivity | Out-Null
-    Assert-WeatherText '缓存 · 获取于'
+    Assert-WeatherText '本地缓存'
     Show-HistoryText '保存环境快照'
     Tap-WeatherText '保存环境快照'
     Assert-WeatherText '来自缓存'

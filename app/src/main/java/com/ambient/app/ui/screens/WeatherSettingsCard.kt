@@ -113,10 +113,6 @@ fun WeatherAreaControls(overview: EnvironmentViewModel, onSettings: () -> Unit) 
             TextButton(onClick = { permission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) },
                 enabled = enabled) { Text(if (state.isLocating) "定位中…" else "使用当前位置") }
         }
-        state.preferences.area?.takeIf { state.preferences.enabled }?.let { area ->
-            Text(if (area.fromDevice) "使用上次单次定位区域 · 再次定位请点击上方按钮" else "手动选择的城市区域 · 非手机定位",
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
         if (!showSearch) state.serviceMessage?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

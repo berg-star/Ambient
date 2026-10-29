@@ -41,7 +41,7 @@ try {
     Show-HistoryText '环境详情  ›'
     Tap-WeatherText '环境详情  ›'
     Wait-HistoryText '体感温度'
-    Assert-WeatherText '缓存 · 获取于'
+    Assert-WeatherText '本地缓存'
     Invoke-DetailsLiveFixture 'details-verify-live'
     'PASS same real detail data survives offline process restart'
 } finally {

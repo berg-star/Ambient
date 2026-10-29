@@ -47,6 +47,7 @@ fun PrecipitationScreen(state: PrecipitationUiState, onRefresh: () -> Unit, modi
     val displayZone = zone ?: ZoneId.systemDefault()
     fun time(at: Long) = DateTimeFormatter.ofPattern("MM-dd HH:mm", Locale.CHINA).withZone(displayZone).format(Instant.ofEpochMilli(at))
     val forecast = if (range == ForecastRange.TWO_HOURS) snapshot?.minutely else snapshot?.hourly
+    val cached = if (range == ForecastRange.TWO_HOURS) state.result.minutelyCached else state.result.hourlyCached
     val points = forecastPoints(forecast, range, now)
     val stale = forecast?.let { forecastStale(it, range, now) } == true
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 22.dp, vertical = 8.dp),
@@ -102,7 +103,7 @@ fun PrecipitationScreen(state: PrecipitationUiState, onRefresh: () -> Unit, modi
                     if (points.isEmpty()) Text("已隐藏过期预报图与旧降水提示，避免把过去的预报当作未来。")
                     if (points.isNotEmpty()) Text("预报点时间 ${time(points.first().time)} — ${time(points.last().time)}",
                         style = MaterialTheme.typography.bodySmall)
-                    Text("获取时间 ${time(forecast.fetchedAt)}${if (state.result.isCached) " · 本地缓存" else ""}",
+                    Text("获取时间 ${time(forecast.fetchedAt)} · ${if (cached) "本地缓存" else "本次获取"}",
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(forecast.updatedAt?.let { "预报更新时间 ${time(it)}" } ?: "接口未提供预报发布时间；获取时间不等于发布时间。",
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

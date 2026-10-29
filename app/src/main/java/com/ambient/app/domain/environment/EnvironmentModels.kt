@@ -14,6 +14,10 @@ data class EnvironmentMetric(
     /** Meteorological source bearing: clockwise from north. Null means no directional arrow. */
     val windFromDegrees: Double? = null,
     val isSimulated: Boolean = false,
+    /** Completion of this metric's source request; null for unavailable or legacy data. */
+    val fetchedAtMillis: Long? = null,
+    /** Provider observation time only when explicitly supplied; never inferred from retrieval. */
+    val observedAtMillis: Long? = null,
 )
 
 data class EnvironmentSnapshot(
@@ -56,6 +60,8 @@ data class EnvironmentArea(
     val verticalAccuracyMeters: Double? = null,
     /** System-reported fix time, distinct from weather retrieval and UI refresh time. */
     val positioningHeightAtMillis: Long? = null,
+    /** System fix time for the area, available even when this fix has no altitude. */
+    val locatedAtMillis: Long? = null,
 )
 
 data class EnvironmentPreferences(
